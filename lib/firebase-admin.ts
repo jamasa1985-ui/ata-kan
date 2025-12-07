@@ -34,15 +34,18 @@ if (getApps().length === 0) {
             credential: cert(serviceAccount),
         });
     } else {
-        // If we reach here without credentials, we might want to initialize default or just let it fail later
-        // But for build, sometimes we just need it to not crash if it's just type checking or collecting paths that don't need DB
-        // However, if getFirestore is called, it needs app.
-        // Let's try to initialize without args if generic google cloud env, or throw specific error
-        if (process.env.NODE_ENV === 'production') {
-            console.error('Firebase Admin credentials missing.');
-        }
+        // 環境変数もファイルもない場合
+        console.error('Firebase Admin credentials missing. Please set FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
     }
 }
 
+const app = getApps()[0];
+
+if (!app) {
+    // ビルド時にNext.jsがこのファイルをimportした際、
+    // 認証情報がないとここで停止させることで、原因不明の "default app does not exist" を防ぐ
+    throw new Error('Firebase Admin initialization failed: Missing credentials. Ensure FIREBASE_SERVICE_ACCOUNT_KEY is set in Vercel environment variables.');
+}
+
 // Firestoreインスタンスのエクスポート
-export const adminDb = getFirestore(getApps()[0]);
+export const adminDb = getFirestore(app);
