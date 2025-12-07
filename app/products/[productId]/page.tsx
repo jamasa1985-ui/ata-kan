@@ -168,6 +168,30 @@ export default function ProductEntriesPage({ params }: PageProps) {
         });
     }, [productEntries, statusFilter, keyword, statusMap]);
 
+    // Header Info Helper
+    const getEntryHeaderInfo = (entry: Entry, statusName: string) => {
+        let label = '';
+        let dateVal: string | Date = '';
+
+        if (statusName.includes('未応募') || statusName.includes('応募中')) {
+            label = '応〆日';
+            dateVal = entry.applyEnd || '';
+        } else if (statusName.includes('応募済')) {
+            label = '発表日';
+            dateVal = entry.resultDate || '';
+        } else if (statusName.includes('当選')) {
+            label = '購〆日';
+            dateVal = entry.purchaseEnd || '';
+        } else if (statusName.includes('購入済')) {
+            label = '購入日';
+            dateVal = (entry as any).purchaseDate || '';
+        } else if (statusName.includes('落選')) {
+            // Keep empty to align status
+        }
+
+        return { label, dateVal };
+    };
+
     if (productLoading) {
         return (
             <main style={{ padding: '16px', fontFamily: 'system-ui, sans-serif' }}>
@@ -175,6 +199,9 @@ export default function ProductEntriesPage({ params }: PageProps) {
             </main>
         );
     }
+    // ...
+    // ...
+
 
     if (!product) {
         return (
@@ -296,6 +323,8 @@ export default function ProductEntriesPage({ params }: PageProps) {
                     const statusName = getStatusName(entry.status);
                     const applyMethodName = getApplyMethodName(entry.applyMethod);
 
+                    const headerInfo = getEntryHeaderInfo(entry, statusName);
+
                     return (
                         <div
                             key={entry.id}
@@ -306,6 +335,7 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                 overflow: 'hidden',
                             }}
                         >
+
                             <div
                                 onClick={() => toggleAccordion(entry.id)}
                                 style={{
@@ -320,13 +350,21 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                 <div style={{ fontSize: '16px', fontWeight: isOpen ? 'bold' : 'normal' }}>
                                     {entry.shopShortName}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span style={{ fontSize: '14px' }}>{statusName}</span>
-                                    <span style={{ fontSize: '14px' }}>
-                                        {entry.resultDate ? formatShortDate(entry.resultDate) : ''}
-                                        <span style={{ marginLeft: '4px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>
-                                            ^
-                                        </span>
+                                    <span style={{
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        gap: '4px',
+                                        width: '110px',     // Fixed width for alignment
+                                        justifyContent: 'flex-end',
+                                        color: headerInfo.label ? '#333' : 'transparent' // text color or visibility
+                                    }}>
+                                        <span>{headerInfo.label}</span>
+                                        <span>{formatShortDate(headerInfo.dateVal)}</span>
+                                    </span>
+                                    <span style={{ marginLeft: '4px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>
+                                        ^
                                     </span>
                                 </div>
                             </div>

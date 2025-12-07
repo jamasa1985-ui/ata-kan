@@ -11,31 +11,60 @@ type Product = {
   releaseDate?: string;
 };
 
+// Alert Types
+type AlertCounts = {
+  applyEnd: number;
+  resultDate: number;
+  purchaseEnd: number;
+};
+
+type ProductAlert = {
+  id: string;
+  name: string;
+  alertCounts: AlertCounts;
+};
+
+type AlertsResponse = {
+  currentProducts: ProductAlert[];
+  pastProducts: AlertCounts | null;
+};
+
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [alerts, setAlerts] = useState<AlertsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/products');
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          console.error('API Error Details:', errorData);
-          throw new Error(errorData?.details || '商品データの取得に失敗しました');
+        const [productsRes, alertsRes] = await Promise.all([
+          fetch('/api/products'),
+          fetch('/api/alerts')
+        ]);
+
+        if (productsRes.ok) {
+          const data = await productsRes.json();
+          setProducts(data);
         }
-        const data = await response.json();
-        setProducts(data);
+
+        if (alertsRes.ok) {
+          const data = await alertsRes.json();
+          setAlerts(data);
+        }
+
       } catch (error) {
-        console.error('商品データの取得に失敗しました:', error);
+        console.error('データの取得に失敗しました:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProducts();
+    fetchData();
   }, []);
+
+  const hasAlerts = alerts && (alerts.currentProducts.length > 0 || alerts.pastProducts);
+
   return (
     <main
       style={{
@@ -80,39 +109,53 @@ export default function Home() {
       {/* メッセージエリア */}
       <section
         style={{
-          marginTop: '24px',
+          marginTop: '16px',
           backgroundColor: '#fff',
           borderRadius: '8px',
           padding: '12px',
           boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         }}
       >
-        <h3 style={{ fontSize: '14px', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>お知らせ</h3>
+        <h3 style={{ fontSize: '14px', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px', color: '#000' }}>お知らせ</h3>
         <div
           style={{
-            maxHeight: '180px', // 約9行分 (1行20px計算)
+            maxHeight: '180px',
             overflowY: 'auto',
             fontSize: '13px',
             lineHeight: '1.5',
-            color: '#333',
+            color: '#000',
           }}
         >
-          <p>ここにメッセージが表示されます。</p>
-          <p>メッセージエリアは可変で最大9行まで表示されます。</p>
-          <p>9行を超えるとスクロールバーが表示されます。</p>
-          <p>テストメッセージ 4</p>
-          <p>テストメッセージ 5</p>
-          <p>テストメッセージ 6</p>
-          <p>テストメッセージ 7</p>
-          <p>テストメッセージ 8</p>
-          <p>テストメッセージ 9</p>
-          <p>テストメッセージ 10 (スクロール確認用)</p>
-          <p>テストメッセージ 11</p>
+          {loading ? (
+            <p>読み込み中...</p>
+          ) : !hasAlerts ? (
+            <p className="mb-0">メッセージはありません。</p>
+          ) : (
+            <>
+              {alerts?.currentProducts.map(p => (
+                <div key={p.id} style={{ marginBottom: '8px', borderBottom: '1px dashed #eee', paddingBottom: '4px' }}>
+                  <div style={{ fontWeight: 'bold', color: '#1e90ff' }}>{p.name}</div>
+                  {p.alertCounts.applyEnd > 0 && <div>・応募締切が近いものがあります {p.alertCounts.applyEnd}件</div>}
+                  {p.alertCounts.resultDate > 0 && <div>・発表日が近いものがあります {p.alertCounts.resultDate}件</div>}
+                  {p.alertCounts.purchaseEnd > 0 && <div>・購入期限が近いものがあります {p.alertCounts.purchaseEnd}件</div>}
+                </div>
+              ))}
+
+              {alerts?.pastProducts && (
+                <div style={{ marginBottom: '8px', borderBottom: '1px dashed #eee', paddingBottom: '4px' }}>
+                  <div style={{ fontWeight: 'bold', color: '#666' }}>過去商品</div>
+                  {alerts.pastProducts.applyEnd > 0 && <div>・応募締切が近いものがあります {alerts.pastProducts.applyEnd}件</div>}
+                  {alerts.pastProducts.resultDate > 0 && <div>・発表日が近いものがあります {alerts.pastProducts.resultDate}件</div>}
+                  {alerts.pastProducts.purchaseEnd > 0 && <div>・購入期限が近いものがあります {alerts.pastProducts.purchaseEnd}件</div>}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </section>
 
       {/* 商品一覧 */}
-      <section style={{ marginTop: '40px' }}>
+      <section style={{ marginTop: '16px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#333' }}>
             読み込み中...
