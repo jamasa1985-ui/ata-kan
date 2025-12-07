@@ -35,7 +35,13 @@ const toDatetimeLocal = (val: string) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-export default function CreateEntryPage() {
+import { Suspense } from 'react';
+
+// ... (imports remain the same, but remove Suspense from here if it was imported, though it wasn't)
+
+// ... types and helper functions ...
+
+function CreateEntryContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const productId = searchParams.get('productId');
@@ -337,5 +343,13 @@ export default function CreateEntryPage() {
                 </button>
             </div>
         </main>
+    );
+}
+
+export default function CreateEntryPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <CreateEntryContent />
+        </Suspense>
     );
 }
