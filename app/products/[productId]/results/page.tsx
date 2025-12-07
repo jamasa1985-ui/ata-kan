@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
-import { Entry, Product } from '../../../../data';
+import { Entry, Product } from '../../../data';
 
 type StatusOption = {
     code: number;
