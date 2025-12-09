@@ -27,10 +27,17 @@ export default function ProductResultsPage({ params }: PageProps) {
     // Dynamic Options State
     const [statusMap, setStatusMap] = useState<Record<string, string>>({});
     const [applyMethodMap, setApplyMethodMap] = useState<Record<string, string>>({});
+    const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
 
     // Detailed mode state
     const [isDetailMode, setIsDetailMode] = useState(false);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+    // Purchase Items Modal State
+    const [showItemsModal, setShowItemsModal] = useState(false);
+    const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+    const [selectedMember, setSelectedMember] = useState<any>(null);
+    const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
     // Fetch Product and Options
     useEffect(() => {
@@ -57,6 +64,7 @@ export default function ProductResultsPage({ params }: PageProps) {
                     // OP002: Status
                     if (data.OP002) {
                         const sOpts: StatusOption[] = data.OP002;
+                        setStatusOptions(sOpts.sort((a, b) => a.order - b.order));
                         const sMap: Record<string, string> = {};
                         sOpts.forEach(opt => sMap[opt.code.toString()] = opt.name);
                         setStatusMap(sMap);
@@ -370,6 +378,92 @@ export default function ProductResultsPage({ params }: PageProps) {
                                         <div style={{ color: '#000' }}>{entry.memo || '（なし）'}</div>
                                     </div>
 
+                                    {/* Members Section */}
+                                    <div style={{ marginBottom: '12px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+                                        <div style={{ fontWeight: 'bold', color: '#000', marginBottom: '4px' }}>メンバー：</div>
+                                        {entry.purchaseMembers && entry.purchaseMembers.length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                {entry.purchaseMembers.map((member) => (
+                                                    <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '4px 8px', borderRadius: '4px' }}>
+                                                        <span style={{ fontSize: '14px' }}>{member.name}</span>
+                                                        <select
+                                                            value={member.status !== undefined ? member.status : 0}
+                                                            onChange={async (e) => {
+                                                                const newStatus = Number(e.target.value);
+
+                                                                // Show modal if status is Won (30) or Purchased (40)
+                                                                if (newStatus === 30 || newStatus === 40) {
+                                                                    setSelectedEntry(entry);
+                                                                    setSelectedMember(member);
+
+                                                                    // Load existing purchase items
+                                                                    try {
+                                                                        const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+                                                                        if (itemsRes.ok) {
+                                                                            const itemsData = await itemsRes.json();
+                                                                            const quantities: Record<string, number> = {};
+                                                                            itemsData.items.forEach((item: any) => {
+                                                                                quantities[item.code] = item.quantity;
+                                                                            });
+                                                                            setItemQuantities(quantities);
+                                                                        } else {
+                                                                            setItemQuantities({});
+                                                                        }
+                                                                    } catch (error) {
+                                                                        console.error('Error loading items:', error);
+                                                                        setItemQuantities({});
+                                                                    }
+
+                                                                    setShowItemsModal(true);
+                                                                }
+
+                                                                const updatedMembers = entry.purchaseMembers?.map(m =>
+                                                                    m.id === member.id ? { ...m, status: newStatus } : m
+                                                                );
+
+                                                                setProductEntries(prev => prev.map(p =>
+                                                                    p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
+                                                                ));
+
+                                                                try {
+                                                                    const res = await fetch(`/api/entries/${entry.id}/members`, {
+                                                                        method: 'PUT',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ members: updatedMembers }),
+                                                                    });
+                                                                    if (!res.ok) {
+                                                                        throw new Error('Failed to update');
+                                                                    }
+                                                                    const data = await res.json();
+                                                                    if (data.newStatus !== undefined) {
+                                                                        setProductEntries(prev => prev.map(p =>
+                                                                            p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                        ));
+                                                                    }
+                                                                } catch (error) {
+                                                                    alert('ステータス更新に失敗しました');
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                border: '1px solid #ccc',
+                                                                borderRadius: 4,
+                                                                padding: '2px 4px',
+                                                                fontSize: 12,
+                                                                backgroundColor: '#fff'
+                                                            }}
+                                                        >
+                                                            {statusOptions.filter(opt => opt.code !== 10).map(opt => (
+                                                                <option key={opt.code} value={opt.code}>{opt.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ color: '#999', fontSize: '12px' }}>メンバー登録なし</div>
+                                        )}
+                                    </div>
+
                                     <div style={{ display: 'flex', gap: '8px' }}>
                                         <Link href={`/entries/${entry.id}?productId=${productId}`}>
                                             <button style={{ backgroundColor: '#1e90ff', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
@@ -442,6 +536,72 @@ export default function ProductResultsPage({ params }: PageProps) {
                     />
                 </div>
             </footer>
+
+            {/* Purchase Items Modal */}
+            {showItemsModal && product && selectedEntry && selectedMember && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowItemsModal(false)}>
+                    <div style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '20px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <h2 style={{ margin: 0, fontSize: '18px' }}>購入商品登録</h2>
+                            <button onClick={() => setShowItemsModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }}>×</button>
+                        </div>
+                        <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                            <div><strong>メンバー:</strong> {selectedMember.name}</div>
+                            <div><strong>ステータス:</strong> {statusMap[selectedMember.status] || selectedMember.status}</div>
+                        </div>
+                        <div style={{ marginBottom: '16px' }}>
+                            {product.productRelations && product.productRelations.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {product.productRelations.map((relation: any) => {
+                                        const qty = itemQuantities[relation.code] || 0;
+                                        const subtotal = relation.price * qty;
+                                        return (
+                                            <div key={relation.code} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontWeight: 'bold' }}>{relation.shortName}</div>
+                                                    <div style={{ fontSize: '12px', color: '#666' }}>¥{relation.price.toLocaleString()}</div>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, qty - 1) }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>-</button>
+                                                    <input type="number" min="0" value={qty} onChange={(e) => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: '50px', textAlign: 'center', border: '1px solid #ccc', borderRadius: '4px', padding: '4px' }} />
+                                                    <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: qty + 1 }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>+</button>
+                                                </div>
+                                                <div style={{ width: '80px', textAlign: 'right', fontSize: '14px' }}>¥{subtotal.toLocaleString()}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>関連商品がありません</div>
+                            )}
+                        </div>
+                        <div style={{ borderTop: '2px solid #333', paddingTop: '12px', marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 'bold' }}>
+                                <span>合計:</span>
+                                <span>¥{Object.entries(itemQuantities).reduce((total, [code, qty]) => {
+                                    const relation = product.productRelations?.find((r: any) => r.code === code);
+                                    return total + (relation ? relation.price * qty : 0);
+                                }, 0).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowItemsModal(false)} style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>キャンセル</button>
+                            <button onClick={async () => {
+                                try {
+                                    const items = product.productRelations?.map((relation: any) => ({ code: relation.code, shortName: relation.shortName, quantity: itemQuantities[relation.code] || 0, amount: relation.price * (itemQuantities[relation.code] || 0) })).filter((item: any) => item.quantity > 0) || [];
+                                    const res = await fetch(`/api/entries/${selectedEntry.id}/members/${selectedMember.id}/items`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+                                    if (!res.ok) throw new Error('Failed to save items');
+                                    alert('購入商品を登録しました');
+                                    setShowItemsModal(false);
+                                } catch (error) {
+                                    console.error('Error saving items:', error);
+                                    alert('購入商品の登録に失敗しました');
+                                }
+                            }} style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#1e90ff', color: '#fff', cursor: 'pointer' }}>保存</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
-import { Entry, Product } from '../../../data';
+import { Entry, Product, Member } from '../../../data';
 
 type StatusOption = {
     code: number;
@@ -10,7 +10,17 @@ type StatusOption = {
     order: number;
 };
 
-// Tabs for Purchase Page: All (30+40), Before Purchase (30), Purchased (40)
+type PurchaseItem = {
+    code: string;
+    shortName: string;
+    quantity: number;
+    amount: number;
+};
+
+type MemberWithItems = Member & {
+    purchaseItems?: PurchaseItem[];
+};
+
 type PurchaseTab = 'すべて' | '購入前' | '購入済';
 
 type PageProps = {
@@ -23,14 +33,20 @@ export default function ProductPurchasesPage({ params }: PageProps) {
     const [product, setProduct] = useState<Product | null>(null);
     const [productLoading, setProductLoading] = useState(true);
     const [productEntries, setProductEntries] = useState<Entry[]>([]);
+    const [memberItems, setMemberItems] = useState<Record<string, Record<string, PurchaseItem[]>>>({});
 
-    // Dynamic Options State
+    const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
     const [statusMap, setStatusMap] = useState<Record<string, string>>({});
     const [applyMethodMap, setApplyMethodMap] = useState<Record<string, string>>({});
 
-    // Detailed mode state
     const [isDetailMode, setIsDetailMode] = useState(false);
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+    // Purchase Items Modal State
+    const [showItemsModal, setShowItemsModal] = useState(false);
+    const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+    const [selectedMember, setSelectedMember] = useState<any>(null);
+    const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
 
     // Fetch Product and Options
     useEffect(() => {
@@ -53,16 +69,13 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                 const response = await fetch('/api/options');
                 if (response.ok) {
                     const data = await response.json();
-
-                    // OP002: Status
                     if (data.OP002) {
-                        const sOpts: StatusOption[] = data.OP002;
+                        const sOpts = data.OP002.sort((a: any, b: any) => a.order - b.order);
+                        setStatusOptions(sOpts);
                         const sMap: Record<string, string> = {};
-                        sOpts.forEach(opt => sMap[opt.code.toString()] = opt.name);
+                        sOpts.forEach((opt: any) => sMap[opt.code.toString()] = opt.name);
                         setStatusMap(sMap);
                     }
-
-                    // OP003: Apply Method
                     if (data.OP003) {
                         const amOpts: StatusOption[] = data.OP003;
                         const amMap: Record<string, string> = {};
@@ -81,7 +94,7 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         }
     }, [productId]);
 
-    // Fetch Entries and Initial Filter
+    // Fetch Entries and Purchase Items
     useEffect(() => {
         const fetchEntries = async () => {
             try {
@@ -90,10 +103,29 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                     throw new Error('応募データの取得に失敗しました');
                 }
                 const data: Entry[] = await response.json();
-                // Filter for Purchase Management screen: Only 30 (Won) and 40 (Purchased)
                 const targetStatuses = ['30', '40'];
                 const filtered = data.filter(e => targetStatuses.includes(e.status.toString()));
                 setProductEntries(filtered);
+
+                // Fetch purchase items for all members
+                const itemsMap: Record<string, Record<string, PurchaseItem[]>> = {};
+                for (const entry of filtered) {
+                    if (entry.purchaseMembers && entry.purchaseMembers.length > 0) {
+                        itemsMap[entry.id] = {};
+                        for (const member of entry.purchaseMembers) {
+                            try {
+                                const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+                                if (itemsRes.ok) {
+                                    const itemsData = await itemsRes.json();
+                                    itemsMap[entry.id][member.id] = itemsData.items || [];
+                                }
+                            } catch (error) {
+                                console.error(`Error fetching items for member ${member.id}:`, error);
+                            }
+                        }
+                    }
+                }
+                setMemberItems(itemsMap);
             } catch (error) {
                 console.error('応募データの取得に失敗しました:', error);
             }
@@ -104,7 +136,6 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         }
     }, [productId]);
 
-    // Helpers
     const getStatusName = (statusCode: string | number) => {
         return statusMap[statusCode.toString()] || statusCode.toString();
     };
@@ -127,7 +158,6 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         return `${d.getFullYear().toString().slice(-2)}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}(${['日', '月', '火', '水', '木', '金', '土'][d.getDay()]}) ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     };
 
-    // Toggle logic for Detail Mode
     useEffect(() => {
         if (isDetailMode) {
             setExpandedIds(new Set(productEntries.map(e => e.id)));
@@ -136,17 +166,13 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         }
     }, [isDetailMode, productEntries]);
 
-
     const [currentTab, setCurrentTab] = useState<PurchaseTab>('すべて');
     const [keyword, setKeyword] = useState('');
 
     const filteredEntries = useMemo(() => {
         return productEntries.filter((e) => {
-            // Tab filtering logic
-            // 30: 購入前 (Won), 40: 購入済 (Purchased)
             if (currentTab === '購入前' && e.status.toString() !== '30') return false;
             if (currentTab === '購入済' && e.status.toString() !== '40') return false;
-
             if (keyword.trim() === '') return true;
             const k = keyword.trim().toLowerCase();
             return (
@@ -155,6 +181,33 @@ export default function ProductPurchasesPage({ params }: PageProps) {
             );
         });
     }, [productEntries, currentTab, keyword]);
+
+    // Calculate totals
+    const totals = useMemo(() => {
+        const productTotals: Record<string, number> = {};
+        const memberTotals: Record<string, number> = {};
+        let grandTotal = 0;
+
+        filteredEntries.forEach(entry => {
+            if (entry.purchaseMembers && memberItems[entry.id]) {
+                entry.purchaseMembers.forEach(member => {
+                    const items = memberItems[entry.id]?.[member.id] || [];
+                    let memberTotal = 0;
+                    items.forEach(item => {
+                        productTotals[item.shortName] = (productTotals[item.shortName] || 0) + item.quantity;
+                        memberTotal += item.amount;
+                    });
+                    if (memberTotal > 0) {
+                        const memberKey = member.name || member.id;
+                        memberTotals[memberKey] = (memberTotals[memberKey] || 0) + memberTotal;
+                        grandTotal += memberTotal;
+                    }
+                });
+            }
+        });
+
+        return { productTotals, memberTotals, grandTotal };
+    }, [filteredEntries, memberItems]);
 
     if (productLoading) {
         return (
@@ -173,14 +226,13 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         );
     }
 
-    // Tab Definitions
     const tabs: PurchaseTab[] = ['すべて', '購入前', '購入済'];
 
     return (
         <main
             style={{
                 minHeight: '100vh',
-                padding: '12px 12px 80px 12px', // Footer space
+                padding: '12px 12px 200px 12px',
                 fontFamily: 'system-ui, sans-serif',
                 backgroundColor: '#f5f5f5',
                 color: '#333',
@@ -193,7 +245,7 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                 style={{
                     marginBottom: '10px',
                     padding: '10px 14px',
-                    backgroundColor: '#1e90ff', // Blue for Purchase Page
+                    backgroundColor: '#1e90ff',
                     color: '#fff',
                     borderRadius: '4px',
                     display: 'flex',
@@ -271,12 +323,13 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                 {filteredEntries.map((entry) => {
                     const isOpen = expandedIds.has(entry.id);
                     const statusName = getStatusName(entry.status);
+                    const entryItems = memberItems[entry.id] || {};
 
                     return (
                         <div
                             key={entry.id}
                             style={{
-                                backgroundColor: isOpen ? '#fff' : '#e6f2ff', // Light blue default
+                                backgroundColor: '#fff',
                                 border: '1px solid #ccc',
                                 borderRadius: '4px',
                                 overflow: 'hidden',
@@ -290,11 +343,6 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
                                     cursor: 'pointer',
-                                    backgroundColor: isOpen ? '#e6f2ff' : '#fff', // Swapped from results page logic? Let's stick to standard: open=colored header or white? 
-                                    // User image shows header is Light Blue (#d0e7ff approx) when open? 
-                                    // Actually image "ポケセンオンライン" is light blue header. 
-                                    // Let's use light blue for header always or when open.
-                                    // Let's stick to similar style: Light header.
                                     background: '#e6f2ff'
                                 }}
                             >
@@ -313,27 +361,119 @@ export default function ProductPurchasesPage({ params }: PageProps) {
 
                             {isOpen && (
                                 <div style={{ padding: '8px 12px 12px', borderTop: '1px solid #eee', backgroundColor: '#fff' }}>
-
-                                    {/* Purchase Date */}
                                     <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '15px' }}>
                                         購入日時： <span style={{ fontWeight: 'normal' }}>{entry.purchaseDate ? formatDate(entry.purchaseDate) : ''}</span>
                                     </div>
 
-                                    {/* Quantity Breakdown (Placeholder) */}
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>数量内訳：</div>
-                                        {/* Mock Data based on image */}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px', marginBottom: '2px' }}>
-                                            <span>MﾄﾞﾘBOX</span>
-                                            <span>け：1個　ま：1個</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: '8px' }}>
-                                            <span>MﾄﾞﾘPAC</span>
-                                            <span>け：0個　ま：0個</span>
-                                        </div>
+                                    {/* Members Section with Status */}
+                                    <div style={{ marginBottom: '12px', borderTop: '1px solid #eee', paddingTop: '8px' }}>
+                                        <div style={{ fontWeight: 'bold', color: '#000', marginBottom: '4px' }}>メンバー：</div>
+                                        {entry.purchaseMembers && entry.purchaseMembers.length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                {entry.purchaseMembers.map((member) => (
+                                                    <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '4px 8px', borderRadius: '4px' }}>
+                                                        <span style={{ fontSize: '14px' }}>{member.name}</span>
+                                                        <select
+                                                            value={member.status !== undefined ? member.status : 0}
+                                                            onChange={async (e) => {
+                                                                const newStatus = Number(e.target.value);
+
+                                                                if (newStatus === 30 || newStatus === 40) {
+                                                                    setSelectedEntry(entry);
+                                                                    setSelectedMember(member);
+
+                                                                    try {
+                                                                        const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+                                                                        if (itemsRes.ok) {
+                                                                            const itemsData = await itemsRes.json();
+                                                                            const quantities: Record<string, number> = {};
+                                                                            itemsData.items.forEach((item: any) => {
+                                                                                quantities[item.code] = item.quantity;
+                                                                            });
+                                                                            setItemQuantities(quantities);
+                                                                        } else {
+                                                                            setItemQuantities({});
+                                                                        }
+                                                                    } catch (error) {
+                                                                        console.error('Error loading items:', error);
+                                                                        setItemQuantities({});
+                                                                    }
+
+                                                                    setShowItemsModal(true);
+                                                                }
+
+                                                                const updatedMembers = entry.purchaseMembers?.map(m =>
+                                                                    m.id === member.id ? { ...m, status: newStatus } : m
+                                                                );
+
+                                                                setProductEntries(prev => prev.map(p =>
+                                                                    p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
+                                                                ));
+
+                                                                try {
+                                                                    const res = await fetch(`/api/entries/${entry.id}/members`, {
+                                                                        method: 'PUT',
+                                                                        headers: { 'Content-Type': 'application/json' },
+                                                                        body: JSON.stringify({ members: updatedMembers }),
+                                                                    });
+                                                                    if (!res.ok) {
+                                                                        throw new Error('Failed to update');
+                                                                    }
+                                                                    const data = await res.json();
+                                                                    if (data.newStatus !== undefined) {
+                                                                        setProductEntries(prev => prev.map(p =>
+                                                                            p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                        ));
+                                                                    }
+                                                                } catch (error) {
+                                                                    alert('ステータス更新に失敗しました');
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                border: '1px solid #ccc',
+                                                                borderRadius: 4,
+                                                                padding: '2px 4px',
+                                                                fontSize: 12,
+                                                                backgroundColor: '#fff'
+                                                            }}
+                                                        >
+                                                            {statusOptions.filter(opt => opt.code !== 10).map(opt => (
+                                                                <option key={opt.code} value={opt.code}>{opt.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ color: '#999', fontSize: '12px' }}>メンバー登録なし</div>
+                                        )}
                                     </div>
 
-                                    {/* Memo readonly */}
+                                    {/* Quantity Breakdown */}
+                                    <div style={{ marginBottom: '8px' }}>
+                                        <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>数量内訳：</div>
+                                        {entry.purchaseMembers && entry.purchaseMembers.length > 0 ? (
+                                            <div style={{ paddingLeft: '8px' }}>
+                                                {entry.purchaseMembers.map((member, idx) => {
+                                                    const items = entryItems[member.id] || [];
+                                                    if (items.length === 0) return null;
+                                                    return (
+                                                        <div key={member.id}>
+                                                            {items.map((item, itemIdx) => (
+                                                                <div key={item.code} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                                                    <span>{itemIdx === 0 ? member.name : ''}</span>
+                                                                    <span>{item.shortName}：{item.quantity}個</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div style={{ paddingLeft: '8px', color: '#999' }}>データなし</div>
+                                        )}
+                                    </div>
+
                                     <div style={{ marginBottom: '12px' }}>
                                         <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>メモ：</div>
                                         <div style={{ paddingLeft: '8px' }}>{entry.memo || '（なし）'}</div>
@@ -345,9 +485,6 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                                 編集
                                             </button>
                                         </Link>
-                                        <button style={{ backgroundColor: '#6c757d', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'not-allowed' }} disabled>
-                                            購入商品
-                                        </button>
                                     </div>
                                 </div>
                             )}
@@ -356,10 +493,10 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                 })}
             </div>
 
-            {/* Total Area (Fixed above Footer) */}
+            {/* Total Area */}
             <div style={{
                 position: 'fixed',
-                bottom: 60, // Height of footer
+                bottom: 60,
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: '100%',
@@ -373,11 +510,13 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                 fontSize: '14px',
                 lineHeight: 1.4
             }}>
-                <div>MﾄﾞﾘBOX : 29個</div>
-                <div>MﾄﾞﾘPAC : 0個</div>
-                <div>け合計 : 121,000円</div>
-                <div>ま合計 : 38,500円</div>
-                <div style={{ fontSize: '16px' }}>合計 : 159,500円</div>
+                {Object.entries(totals.productTotals).map(([name, qty]) => (
+                    <div key={name}>{name} : {qty}個</div>
+                ))}
+                {Object.entries(totals.memberTotals).map(([name, amount]) => (
+                    <div key={name}>{name}合計 : {amount.toLocaleString()}円</div>
+                ))}
+                <div style={{ fontSize: '16px' }}>合計 : {totals.grandTotal.toLocaleString()}円</div>
             </div>
 
             {/* Footer */}
@@ -454,6 +593,86 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                     />
                 </div>
             </footer>
+
+            {/* Purchase Items Modal */}
+            {showItemsModal && product && selectedEntry && selectedMember && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowItemsModal(false)}>
+                    <div style={{ backgroundColor: '#fff', borderRadius: '8px', padding: '20px', maxWidth: '500px', width: '90%', maxHeight: '80vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <h2 style={{ margin: 0, fontSize: '18px' }}>購入商品登録</h2>
+                            <button onClick={() => setShowItemsModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }}>×</button>
+                        </div>
+                        <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                            <div><strong>メンバー:</strong> {selectedMember.name}</div>
+                            <div><strong>ステータス:</strong> {statusMap[selectedMember.status] || selectedMember.status}</div>
+                        </div>
+                        <div style={{ marginBottom: '16px' }}>
+                            {product.productRelations && product.productRelations.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    {product.productRelations.map((relation: any) => {
+                                        const qty = itemQuantities[relation.code] || 0;
+                                        const subtotal = relation.price * qty;
+                                        return (
+                                            <div key={relation.code} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontWeight: 'bold' }}>{relation.shortName}</div>
+                                                    <div style={{ fontSize: '12px', color: '#666' }}>¥{relation.price.toLocaleString()}</div>
+                                                </div>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, qty - 1) }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>-</button>
+                                                    <input type="number" min="0" value={qty} onChange={(e) => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: '50px', textAlign: 'center', border: '1px solid #ccc', borderRadius: '4px', padding: '4px' }} />
+                                                    <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: qty + 1 }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>+</button>
+                                                </div>
+                                                <div style={{ width: '80px', textAlign: 'right', fontSize: '14px' }}>¥{subtotal.toLocaleString()}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>関連商品がありません</div>
+                            )}
+                        </div>
+                        <div style={{ borderTop: '2px solid #333', paddingTop: '12px', marginBottom: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 'bold' }}>
+                                <span>合計:</span>
+                                <span>¥{Object.entries(itemQuantities).reduce((total, [code, qty]) => {
+                                    const relation = product.productRelations?.find((r: any) => r.code === code);
+                                    return total + (relation ? relation.price * qty : 0);
+                                }, 0).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setShowItemsModal(false)} style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>キャンセル</button>
+                            <button onClick={async () => {
+                                try {
+                                    const items = product.productRelations?.map((relation: any) => ({ code: relation.code, shortName: relation.shortName, quantity: itemQuantities[relation.code] || 0, amount: relation.price * (itemQuantities[relation.code] || 0) })).filter((item: any) => item.quantity > 0) || [];
+                                    const res = await fetch(`/api/entries/${selectedEntry.id}/members/${selectedMember.id}/items`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
+                                    if (!res.ok) throw new Error('Failed to save items');
+
+                                    // Refresh items
+                                    const itemsRes = await fetch(`/api/entries/${selectedEntry.id}/members/${selectedMember.id}/items`);
+                                    if (itemsRes.ok) {
+                                        const itemsData = await itemsRes.json();
+                                        setMemberItems(prev => ({
+                                            ...prev,
+                                            [selectedEntry.id]: {
+                                                ...prev[selectedEntry.id],
+                                                [selectedMember.id]: itemsData.items || []
+                                            }
+                                        }));
+                                    }
+
+                                    alert('購入商品を登録しました');
+                                    setShowItemsModal(false);
+                                } catch (error) {
+                                    console.error('Error saving items:', error);
+                                    alert('購入商品の登録に失敗しました');
+                                }
+                            }} style={{ padding: '8px 16px', border: 'none', borderRadius: '4px', backgroundColor: '#1e90ff', color: '#fff', cursor: 'pointer' }}>保存</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </main>
     );
 }

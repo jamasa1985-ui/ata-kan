@@ -40,6 +40,11 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
             // Ensure dates are strings or handle them consistent with other APIs if needed
         };
 
+        // Fetch purchaseMembers subcollection
+        const membersSnapshot = await docRef.collection('purchaseMembers').get();
+        const purchaseMembers = membersSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        (entry as any).purchaseMembers = purchaseMembers;
+
         return NextResponse.json(entry);
 
     } catch (error) {
@@ -68,7 +73,39 @@ export async function PUT(req: NextRequest, { params }: { params: Params }) {
             updatedAt: new Date().toISOString(), // Or use admin.firestore.FieldValue.serverTimestamp() if preferred, but string is easier for now
         };
 
-        await adminDb.collection('entries').doc(entryId).update(finalUpdateData);
+        const { purchaseMembers, ...firestoreData } = finalUpdateData;
+
+        await adminDb.collection('entries').doc(entryId).update(firestoreData);
+
+        // Update purchaseMembers subcollection
+        if (purchaseMembers && Array.isArray(purchaseMembers)) {
+            const membersRef = adminDb.collection('entries').doc(entryId).collection('purchaseMembers');
+
+            // Get existing members to determine edits/deletes
+            const existingSnapshot = await membersRef.get();
+            const batch = adminDb.batch();
+            const incomingIds = new Set(purchaseMembers.map((m: any) => m.id));
+
+            // Delete members not in incoming list
+            existingSnapshot.docs.forEach(doc => {
+                if (!incomingIds.has(doc.id)) {
+                    batch.delete(doc.ref);
+                }
+            });
+
+            // Set/Update incoming members
+            purchaseMembers.forEach((member: any) => {
+                if (member.id) {
+                    const memberData = {
+                        ...member,
+                        status: member.status !== undefined ? member.status : 0
+                    };
+                    batch.set(membersRef.doc(member.id), memberData, { merge: true });
+                }
+            });
+
+            await batch.commit();
+        }
 
         return NextResponse.json({ success: true, message: 'Entry updated' });
 

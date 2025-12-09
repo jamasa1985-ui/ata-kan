@@ -36,6 +36,7 @@ export async function GET(request: Request, context: RouteContext) {
             name: data?.name || '',
             displayFlag: data?.displayFlag,
             releaseDate: releaseDate,
+            productRelations: data?.productRelations || [],
         };
 
         return NextResponse.json(product);

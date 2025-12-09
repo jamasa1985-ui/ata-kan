@@ -1,8 +1,9 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { Member } from '../../data';
 
 type StatusOption = {
     code: number;
@@ -22,6 +23,8 @@ type EntryForm = {
     resultDate: string;
     purchaseStart: string;
     purchaseEnd: string;
+    purchaseDate: string;
+    purchaseMembers: Member[];
     memo: string;
     url: string;
 };
@@ -35,9 +38,7 @@ const toDatetimeLocal = (val: string) => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
-import { Suspense } from 'react';
 
-// ... (imports remain the same, but remove Suspense from here if it was imported, though it wasn't)
 
 // ... types and helper functions ...
 
@@ -53,20 +54,34 @@ function CreateEntryContent() {
     const [applyMethodOptions, setApplyMethodOptions] = useState<StatusOption[]>([]);
     const [shopOptions, setShopOptions] = useState<{ id: string, name: string }[]>([]);
 
+    // Helper for default time (current hour)
+    const getCurrentHourISO = () => {
+        const d = new Date();
+        d.setMinutes(0, 0, 0); // Round down to hour
+        // Format to YYYY-MM-DDTHH:mm for local time input
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+
     const [formData, setFormData] = useState<EntryForm>({
         productId: productId || '',
         productName: productName || '',
         shopShortName: '',
         status: '21', // Default to '未応募' (21) if possible, or fetch order
         applyMethod: '',
-        applyStart: '',
-        applyEnd: '',
-        resultDate: '',
-        purchaseStart: '',
-        purchaseEnd: '',
+        applyStart: getCurrentHourISO(),
+        applyEnd: getCurrentHourISO(),
+        resultDate: getCurrentHourISO(),
+        purchaseStart: getCurrentHourISO(),
+        purchaseEnd: getCurrentHourISO(),
+        purchaseDate: '',
+        purchaseMembers: [],
         memo: '',
         url: '',
     });
+
+    const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
+    const [selectedMemberId, setSelectedMemberId] = useState('');
 
     useEffect(() => {
         // Fetch Options
@@ -103,6 +118,30 @@ function CreateEntryContent() {
             }
         };
 
+        // Fetch Members
+        const fetchMembers = async () => {
+            try {
+                const res = await fetch('/api/members');
+                if (res.ok) {
+                    const data: Member[] = await res.json();
+                    setAvailableMembers(data);
+
+                    // Auto-select primary members
+                    console.log('Fetched members:', data);
+                    const primaryMembers = data.filter(m => m.primaryFlg).map(m => ({ ...m, status: 0 }));
+                    console.log('Primary members found:', primaryMembers);
+                    if (primaryMembers.length > 0) {
+                        setFormData(prev => ({
+                            ...prev,
+                            purchaseMembers: primaryMembers
+                        }));
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching members:', error);
+            }
+        };
+
         // Fetch Product Name if not passed
         const fetchProduct = async () => {
             if (productId && !productName) {
@@ -117,7 +156,9 @@ function CreateEntryContent() {
         };
 
         fetchOptions();
+        fetchOptions();
         fetchShops();
+        fetchMembers();
         fetchProduct();
     }, [productId, productName]);
 
@@ -144,6 +185,7 @@ function CreateEntryContent() {
                 resultDate: formData.resultDate ? new Date(formData.resultDate).toISOString() : null,
                 purchaseStart: formData.purchaseStart ? new Date(formData.purchaseStart).toISOString() : null,
                 purchaseEnd: formData.purchaseEnd ? new Date(formData.purchaseEnd).toISOString() : null,
+                purchaseDate: formData.purchaseDate ? new Date(formData.purchaseDate).toISOString() : null,
             };
 
             const res = await fetch('/api/entries', {
@@ -166,14 +208,7 @@ function CreateEntryContent() {
         }
     };
 
-    // Helper for default time (current hour)
-    const getCurrentHourISO = () => {
-        const d = new Date();
-        d.setMinutes(0, 0, 0); // Round down to hour
-        // Format to YYYY-MM-DDTHH:mm for local time input
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
+
 
     const handleDateChange = (field: keyof EntryForm, val: string) => {
         setFormData(prev => ({ ...prev, [field]: val }));
@@ -190,6 +225,30 @@ function CreateEntryContent() {
                 return { ...prev, [field]: getCurrentHourISO() };
             }
         });
+    };
+
+    const handleAddMember = () => {
+        if (!selectedMemberId) return;
+        const memberToAdd = availableMembers.find(m => m.id === selectedMemberId);
+        if (memberToAdd) {
+            // Check if already added
+            if (formData.purchaseMembers.some(m => m.id === memberToAdd.id)) {
+                alert('既に追加されています');
+                return;
+            }
+            setFormData(prev => ({
+                ...prev,
+                purchaseMembers: [...prev.purchaseMembers, { ...memberToAdd, status: 0 }]
+            }));
+            setSelectedMemberId('');
+        }
+    };
+
+    const handleRemoveMember = (memberId: string) => {
+        setFormData(prev => ({
+            ...prev,
+            purchaseMembers: prev.purchaseMembers.filter(m => m.id !== memberId)
+        }));
     };
 
     const handleCancel = () => {
@@ -242,9 +301,10 @@ function CreateEntryContent() {
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4 }}>ステータス</label>
                     <select
-                        style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                        style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box', backgroundColor: '#eee' }}
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        disabled
                     >
                         {statusOptions.map(opt => (
                             <option key={opt.code} value={opt.code}>{opt.name}</option>
@@ -281,7 +341,7 @@ function CreateEntryContent() {
                             <input
                                 type="datetime-local"
                                 style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
-                                value={formData[item.field as keyof EntryForm]}
+                                value={formData[item.field as keyof EntryForm] as string}
                                 onChange={(e) => handleDateChange(item.field as keyof EntryForm, e.target.value)}
                                 disabled={!formData[item.field as keyof EntryForm]}
                             />
@@ -297,6 +357,58 @@ function CreateEntryContent() {
                         </div>
                     </div>
                 ))}
+
+
+                {/* Purchase Date */}
+                <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4, color: statusOptions.find(o => o.name === '購入済')?.code.toString() == formData.status ? '#333' : '#aaa' }}>購入日</label>
+                    <input
+                        type="date"
+                        style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box', backgroundColor: statusOptions.find(o => o.name === '購入済')?.code.toString() == formData.status ? '#fff' : '#eee' }}
+                        value={formData.purchaseDate}
+                        onChange={(e) => handleDateChange('purchaseDate', e.target.value)}
+                        disabled={statusOptions.find(o => o.name === '購入済')?.code.toString() != formData.status}
+                    />
+                </div>
+
+                {/* Members */}
+                <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4 }}>購入メンバー</label>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <select
+                            style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                            value={selectedMemberId}
+                            onChange={(e) => setSelectedMemberId(e.target.value)}
+                        >
+                            <option value="">メンバーを選択</option>
+                            {availableMembers.map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+                        <button
+                            type="button"
+                            onClick={handleAddMember}
+                            style={{ padding: '8px 16px', backgroundColor: '#e0e0e0', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer' }}
+                        >
+                            追加
+                        </button>
+                    </div>
+                    {/* Member List */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {formData.purchaseMembers.map(member => (
+                            <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 8, background: '#f9f9f9', border: '1px solid #eee', borderRadius: 4 }}>
+                                <span>{member.name}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveMember(member.id)}
+                                    style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontSize: 12 }}
+                                >
+                                    削除
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
 
                 {/* Memo */}
                 <div style={{ marginBottom: 16 }}>
@@ -342,7 +454,7 @@ function CreateEntryContent() {
                     キャンセル
                 </button>
             </div>
-        </main>
+        </main >
     );
 }
 

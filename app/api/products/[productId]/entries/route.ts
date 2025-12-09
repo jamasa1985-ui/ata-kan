@@ -16,8 +16,16 @@ export async function GET(request: Request, context: RouteContext) {
         // Firestore field is 'productCode', not 'productId'
         const snapshot = await entriesRef.where('productCode', '==', productId).get();
 
-        const entries = snapshot.docs.map((doc) => {
+        const entries = await Promise.all(snapshot.docs.map(async (doc) => {
             const data = doc.data();
+
+            // Fetch purchaseMembers subcollection
+            const membersSnapshot = await doc.ref.collection('purchaseMembers').get();
+            const purchaseMembers = membersSnapshot.docs.map(mDoc => ({
+                id: mDoc.id,
+                ...mDoc.data()
+            }));
+
             return {
                 id: doc.id,
                 ...data, // Spread original data
@@ -26,8 +34,9 @@ export async function GET(request: Request, context: RouteContext) {
                 productName: data.productShortName,
                 shopShortName: data.shopShortName || data.storeName || '店舗名なし', // Fallback with explicit text
                 status: data.status,
+                purchaseMembers, // Attach fetched members
             };
-        });
+        }));
 
         return NextResponse.json(entries);
     } catch (error) {

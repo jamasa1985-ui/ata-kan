@@ -7,6 +7,23 @@ export type EntryStatus = '未応募' | '応募済' | '当選' | '購入済' | '
 export type Product = {
     id: string;   // URL用のID（スラッグ）
     name: string; // 商品名
+    productRelations?: Array<{
+        code: string;
+        name: string;
+        shortName: string;
+        price: number;
+        quantity: number;
+        amount: number;
+    }>;
+};
+
+// メンバー
+export type Member = {
+    id: string;
+    name: string;
+    primaryFlg?: boolean; // 自動セット用フラグ
+    order?: number;       // 表示順
+    status?: number;      // 0: 未購入? (Entry内でのステータス用)
 };
 
 // 応募データ
@@ -25,6 +42,7 @@ export type Entry = {
     purchaseStart?: string | Date;
     purchaseEnd?: string | Date;
     purchaseDate?: string | Date; // Added for Purchase Management
+    purchaseMembers?: Member[]; // Added for Purchase Member Management
     url?: string;
     memo?: string;
 
