@@ -55,9 +55,20 @@ export async function PUT(
             }
         }
 
+        // Auto-set purchaseDate when a member becomes "Purchased" (40)
+        const hasPurchasedMember = members.some((m: any) => Number(m.status || 0) === 40);
+        const entryDoc = await entryRef.get();
+        const currentPurchaseDate = entryDoc.data()?.purchaseDate;
 
-        // Update Entry Status
-        batch.update(entryRef, { status: newStatus });
+        // Update Entry Status and purchaseDate
+        if (hasPurchasedMember && !currentPurchaseDate) {
+            batch.update(entryRef, {
+                status: newStatus,
+                purchaseDate: new Date().toISOString()
+            });
+        } else {
+            batch.update(entryRef, { status: newStatus });
+        }
 
         await batch.commit();
 

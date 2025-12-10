@@ -2,8 +2,11 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
+        const { searchParams } = new URL(request.url);
+        const all = searchParams.get('all') === 'true';
+
         const productsRef = adminDb.collection('products');
         const snapshot = await productsRef.get();
 
@@ -36,6 +39,10 @@ export async function GET() {
             })
             .filter((product) => {
                 if (!product.displayFlag) return false;
+
+                // all=trueの場合は日付フィルタをスキップ
+                if (all) return true;
+
                 if (!product.releaseDate) return false;
 
                 // 発売から14日以降（未来の日付も含む）

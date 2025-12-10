@@ -157,7 +157,6 @@ export default function ProductEntriesPage({ params }: PageProps) {
     };
 
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('すべて');
-    const [keyword, setKeyword] = useState('');
 
     const filteredEntries = useMemo(() => {
         const filtered = productEntries.filter((e) => {
@@ -165,12 +164,7 @@ export default function ProductEntriesPage({ params }: PageProps) {
             if (statusFilter !== 'すべて' && sName !== statusFilter) {
                 return false;
             }
-            if (keyword.trim() === '') return true;
-            const k = keyword.trim().toLowerCase();
-            return (
-                e.productName.toLowerCase().includes(k) ||
-                e.shopShortName.toLowerCase().includes(k)
-            );
+            return true;
         });
 
         // Create a map for status order for O(1) lookup
@@ -209,7 +203,7 @@ export default function ProductEntriesPage({ params }: PageProps) {
             if (!dateB) return -1;
             return new Date(dateA).getTime() - new Date(dateB).getTime();
         });
-    }, [productEntries, statusFilter, keyword, statusMap, statusOptions]);
+    }, [productEntries, statusFilter, statusMap, statusOptions]);
 
     // Header Info Helper
     const getEntryHeaderInfo = (entry: Entry, statusName: string) => {
@@ -306,22 +300,6 @@ export default function ProductEntriesPage({ params }: PageProps) {
                     border: '1px solid #ddd',
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ marginRight: '8px', fontSize: '14px' }}>店舗名</span>
-                    <input
-                        type="text"
-                        placeholder="店舗名で絞り込み"
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        style={{
-                            flex: 1,
-                            padding: '4px 8px',
-                            fontSize: '14px',
-                            border: '1px solid #ccc',
-                            borderRadius: '4px',
-                        }}
-                    />
-                </div>
 
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                     <button

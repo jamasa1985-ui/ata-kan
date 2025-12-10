@@ -77,27 +77,37 @@ export async function GET() {
         const entriesSnapshot = await adminDb.collectionGroup('entries').get();
 
         entriesSnapshot.docs.forEach(doc => {
-            // 親の商品IDを取得
-            // doc.ref.parent.parent?.id で取得可能
-            const productRef = doc.ref.parent.parent;
-            if (!productRef) return;
-            const productId = productRef.id;
+            const data = doc.data();
+
+            // エントリは商品のサブコレクションではなく、トップレベルのコレクション
+            // productIdはドキュメントのフィールドとして保存されている
+            const productId = data.productId;
+
+            if (!productId) {
+                return;
+            }
 
             const productInfo = productMap.get(productId);
-            if (!productInfo) return; // 対象外の商品（displayFlag=falseなど）ならスキップ
-
-            const data = doc.data();
+            if (!productInfo) {
+                return; // 対象外の商品（displayFlag=falseなど）ならスキップ
+            }
+            const status = Number(data.status); // ステータスを数値として取得
             const applyEnd = parseDate(data.applyEnd);
             const resultDate = parseDate(data.resultDate);
             const purchaseEnd = parseDate(data.purchaseEnd);
 
-            if (applyEnd && isApproaching(applyEnd, now, sevenDaysLater)) {
+            // 応募締切: ステータスが「0 (未応募)」かつ応募終了日時が近い
+            if (status === 0 && applyEnd && isApproaching(applyEnd, now, sevenDaysLater)) {
                 productInfo.counts.applyEnd++;
             }
-            if (resultDate && isApproaching(resultDate, now, sevenDaysLater)) {
+
+            // 発表日: ステータスが「10 (応募中)」または「20 (応募済)」かつ発表日時が近い
+            if ((status === 10 || status === 20) && resultDate && isApproaching(resultDate, now, sevenDaysLater)) {
                 productInfo.counts.resultDate++;
             }
-            if (purchaseEnd && isApproaching(purchaseEnd, now, sevenDaysLater)) {
+
+            // 購入期限: ステータスが「30 (当選)」かつ購入期限終了日時が近い
+            if (status === 30 && purchaseEnd && isApproaching(purchaseEnd, now, sevenDaysLater)) {
                 productInfo.counts.purchaseEnd++;
             }
         });
@@ -124,6 +134,11 @@ export async function GET() {
                     hasPastAlerts = true;
                 }
             }
+        });
+
+        console.log('📊 Final Alert Results:', {
+            currentProducts: alerts,
+            pastProducts: hasPastAlerts ? pastAlerts : null
         });
 
         return NextResponse.json({

@@ -157,24 +157,42 @@ export default function ProductResultsPage({ params }: PageProps) {
     };
 
     const [currentTab, setCurrentTab] = useState<ResultTab>('すべて');
-    const [keyword, setKeyword] = useState('');
 
     const filteredEntries = useMemo(() => {
-        return productEntries.filter((e) => {
+        const filtered = productEntries.filter((e) => {
             // Tab filtering logic
             // 20: 応募済 (Applied), 30: 当選 (Won), 99: 落選 (Lost)
             if (currentTab === '応募済' && e.status.toString() !== '20') return false;
             if (currentTab === '当選' && e.status.toString() !== '30') return false;
             if (currentTab === '落選' && e.status.toString() !== '99') return false;
 
-            if (keyword.trim() === '') return true;
-            const k = keyword.trim().toLowerCase();
-            return (
-                e.productName.toLowerCase().includes(k) ||
-                e.shopShortName.toLowerCase().includes(k)
-            );
+            return true;
         });
-    }, [productEntries, currentTab, keyword]);
+
+        // Sort by Status Order -> Date
+        const statusOrder: Record<string, number> = {};
+        statusOptions.forEach(opt => {
+            statusOrder[opt.code.toString()] = opt.order;
+        });
+
+        return filtered.sort((a, b) => {
+            // 1. Sort by Status Order
+            const orderA = statusOrder[a.status.toString()] || 999;
+            const orderB = statusOrder[b.status.toString()] || 999;
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+
+            // 2. Sort by resultDate (発表日)
+            const dateA = a.resultDate;
+            const dateB = b.resultDate;
+
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
+    }, [productEntries, currentTab, statusOptions]);
 
     if (productLoading) {
         return (
@@ -248,22 +266,6 @@ export default function ProductResultsPage({ params }: PageProps) {
                     border: '1px solid #ddd',
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ marginRight: '8px', fontSize: '14px' }}>店舗名</span>
-                    <input
-                        type="text"
-                        placeholder="店舗名で絞り込み"
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        style={{
-                            flex: 1,
-                            padding: '4px 8px',
-                            fontSize: '14px',
-                            border: '1px solid #ccc',
-                            borderRadius: '4px',
-                        }}
-                    />
-                </div>
 
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                     {tabs.map((tab) => (

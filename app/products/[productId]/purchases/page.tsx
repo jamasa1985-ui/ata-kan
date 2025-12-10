@@ -158,6 +158,12 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         return `${d.getFullYear().toString().slice(-2)}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}(${['日', '月', '火', '水', '木', '金', '土'][d.getDay()]}) ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
     };
 
+    const formatShortDate = (date: string | Date | undefined) => {
+        if (!date) return '';
+        const d = new Date(date);
+        return `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
+    };
+
     useEffect(() => {
         if (isDetailMode) {
             setExpandedIds(new Set(productEntries.map(e => e.id)));
@@ -167,20 +173,40 @@ export default function ProductPurchasesPage({ params }: PageProps) {
     }, [isDetailMode, productEntries]);
 
     const [currentTab, setCurrentTab] = useState<PurchaseTab>('すべて');
-    const [keyword, setKeyword] = useState('');
 
     const filteredEntries = useMemo(() => {
-        return productEntries.filter((e) => {
+        const filtered = productEntries.filter((e) => {
             if (currentTab === '購入前' && e.status.toString() !== '30') return false;
             if (currentTab === '購入済' && e.status.toString() !== '40') return false;
-            if (keyword.trim() === '') return true;
-            const k = keyword.trim().toLowerCase();
-            return (
-                e.productName.toLowerCase().includes(k) ||
-                e.shopShortName.toLowerCase().includes(k)
-            );
+            return true;
         });
-    }, [productEntries, currentTab, keyword]);
+
+        // Sort by Status Order -> Date
+        const statusOrder: Record<string, number> = {};
+        statusOptions.forEach(opt => {
+            statusOrder[opt.code.toString()] = opt.order;
+        });
+
+        return filtered.sort((a, b) => {
+            // 1. Sort by Status Order
+            const orderA = statusOrder[a.status.toString()] || 999;
+            const orderB = statusOrder[b.status.toString()] || 999;
+            if (orderA !== orderB) {
+                return orderA - orderB;
+            }
+
+            // 2. Sort by Date (purchaseEnd for 当選, purchaseDate for 購入済)
+            const statusNameA = getStatusName(a.status);
+            const statusNameB = getStatusName(b.status);
+            const dateA = statusNameA === '当選' ? a.purchaseEnd : (a as any).purchaseDate;
+            const dateB = statusNameB === '当選' ? b.purchaseEnd : (b as any).purchaseDate;
+
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return new Date(dateA).getTime() - new Date(dateB).getTime();
+        });
+    }, [productEntries, currentTab, statusOptions, statusMap]);
 
     // Calculate totals
     const totals = useMemo(() => {
@@ -279,22 +305,6 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                     border: '1px solid #ddd',
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ marginRight: '8px', fontSize: '14px' }}>店舗名</span>
-                    <input
-                        type="text"
-                        placeholder="店舗名で絞り込み"
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        style={{
-                            flex: 1,
-                            padding: '4px 8px',
-                            fontSize: '14px',
-                            border: '1px solid #ccc',
-                            borderRadius: '4px',
-                        }}
-                    />
-                </div>
 
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                     {tabs.map((tab) => (
@@ -349,9 +359,17 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                 <div style={{ fontSize: '16px', fontWeight: isOpen ? 'bold' : 'normal' }}>
                                     {entry.shopShortName}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <span style={{ fontSize: '14px' }}>
-                                        {statusName === '購入済' ? `購入：${formatDate(entry.purchaseDate).split(' ')[0].slice(5)}` : `購：`}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '14px' }}>{statusName}</span>
+                                    <span style={{
+                                        fontSize: '14px',
+                                        display: 'flex',
+                                        gap: '4px',
+                                        width: '110px',
+                                        justifyContent: 'flex-end'
+                                    }}>
+                                        <span>{statusName === '当選' ? '購〆日' : '購入日'}</span>
+                                        <span>{statusName === '当選' ? (entry.purchaseEnd ? formatShortDate(entry.purchaseEnd) : '') : (entry.purchaseDate ? formatShortDate(entry.purchaseDate) : '')}</span>
                                     </span>
                                     <span style={{ marginLeft: '4px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>
                                         ^
@@ -539,19 +557,21 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                     boxSizing: 'border-box'
                 }}
             >
-                <button
-                    style={{
-                        backgroundColor: '#fff',
-                        color: '#333',
-                        border: 'none',
-                        padding: '6px 16px',
-                        borderRadius: '4px',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                    }}
-                >
-                    購入情報登録
-                </button>
+                <Link href={`/purchases/create?productId=${productId}`}>
+                    <button
+                        style={{
+                            backgroundColor: '#fff',
+                            color: '#333',
+                            border: 'none',
+                            padding: '6px 16px',
+                            borderRadius: '4px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        購入情報登録
+                    </button>
+                </Link>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <label

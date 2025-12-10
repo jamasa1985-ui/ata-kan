@@ -20,6 +20,7 @@ export default function EditEntryPage({ params }: PageProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const productId = searchParams.get('productId');
+    const from = searchParams.get('from');
 
     const [entry, setEntry] = useState<Entry | null>(null);
     const [loading, setLoading] = useState(true);
@@ -112,9 +113,16 @@ export default function EditEntryPage({ params }: PageProps) {
 
             if (res.ok) {
                 alert('更新しました');
-                if (productId) {
+                console.log('from parameter:', from);
+                console.log('productId parameter:', productId);
+                if (from === 'schedule') {
+                    console.log('Redirecting to schedule');
+                    router.push('/schedule');
+                } else if (productId) {
+                    console.log('Redirecting to product page');
                     router.push(`/products/${productId}`);
                 } else {
+                    console.log('Going back');
                     router.back();
                 }
             } else {
@@ -136,7 +144,9 @@ export default function EditEntryPage({ params }: PageProps) {
 
             if (res.ok) {
                 alert('削除しました');
-                if (productId) {
+                if (from === 'schedule') {
+                    router.push('/schedule');
+                } else if (productId) {
                     router.push(`/products/${productId}`);
                 } else {
                     router.back();
@@ -151,7 +161,9 @@ export default function EditEntryPage({ params }: PageProps) {
     };
 
     const handleCancel = () => {
-        if (productId) {
+        if (from === 'schedule') {
+            router.push('/schedule');
+        } else if (productId) {
             router.push(`/products/${productId}`);
         } else {
             router.back();
@@ -335,13 +347,13 @@ export default function EditEntryPage({ params }: PageProps) {
 
                 {/* Purchase Date */}
                 <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4, color: statusOptions.find(o => o.name === '購入済')?.code.toString() == formData.status ? '#333' : '#aaa' }}>購入日</label>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4, color: (Number(formData.status) === 30 || Number(formData.status) === 40) ? '#333' : '#aaa' }}>購入日時</label>
                     <input
-                        type="date"
-                        style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box', backgroundColor: statusOptions.find(o => o.name === '購入済')?.code.toString() == formData.status ? '#fff' : '#eee' }}
-                        value={formData.purchaseDate ? new Date(formData.purchaseDate as string | Date).toISOString().split('T')[0] : ''}
+                        type="datetime-local"
+                        style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box', backgroundColor: (Number(formData.status) === 30 || Number(formData.status) === 40) ? '#fff' : '#eee' }}
+                        value={toDatetimeLocal(formData.purchaseDate as string)}
                         onChange={(e) => handleDateChange('purchaseDate', e.target.value)}
-                        disabled={statusOptions.find(o => o.name === '購入済')?.code.toString() != formData.status}
+                        disabled={Number(formData.status) !== 30 && Number(formData.status) !== 40}
                     />
                 </div>
 
