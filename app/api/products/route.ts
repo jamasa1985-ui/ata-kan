@@ -61,3 +61,50 @@ export async function GET(request: Request) {
         );
     }
 }
+
+// 商品登録 (POST)
+export async function POST(request: Request) {
+    try {
+        const body = await request.json();
+
+        // 必須項目のバリデーション
+        if (!body.name) {
+            return NextResponse.json(
+                { error: '商品名は必須です' },
+                { status: 400 }
+            );
+        }
+
+        const data: any = {
+            ...body,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+
+        if (data.releaseDate) {
+            data.releaseDate = new Date(data.releaseDate);
+        }
+
+        const productsRef = adminDb.collection('products');
+
+        const newId = await adminDb.runTransaction(async (t) => {
+            const { getNextSequence } = await import('@/lib/sequence');
+            const docId = await getNextSequence(t, 'product');
+            const newDocRef = productsRef.doc(docId);
+            t.set(newDocRef, data);
+            return docId;
+        });
+
+        return NextResponse.json({ id: newId, message: '商品を登録しました' }, { status: 201 });
+
+    } catch (error) {
+        console.error('商品の登録に失敗しました:', error);
+        return NextResponse.json(
+            {
+                error: '商品の登録に失敗しました',
+                details: error instanceof Error ? error.message : String(error)
+            },
+            { status: 500 }
+        );
+    }
+}

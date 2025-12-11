@@ -53,6 +53,8 @@ function CreateEntryContent() {
     const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
     const [applyMethodOptions, setApplyMethodOptions] = useState<StatusOption[]>([]);
     const [shopOptions, setShopOptions] = useState<{ id: string, name: string }[]>([]);
+    const [products, setProducts] = useState<{ id: string, name: string }[]>([]);
+
 
     // Helper for default time (current hour)
     const getCurrentHourISO = () => {
@@ -155,11 +157,28 @@ function CreateEntryContent() {
             }
         };
 
+        // Fetch Products if no productId
+        const fetchProducts = async () => {
+            if (!productId) {
+                try {
+                    const res = await fetch('/api/products?all=true');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const filtered = data
+                            .filter((p: any) => p.displayFlag === true)
+                            .sort((a: any, b: any) => b.id.localeCompare(a.id));
+                        setProducts(filtered);
+                    }
+                } catch (e) { console.error(e); }
+            }
+        };
+
         fetchOptions();
         fetchOptions();
         fetchShops();
         fetchMembers();
         fetchProduct();
+        fetchProducts();
     }, [productId, productName]);
 
 
@@ -196,7 +215,11 @@ function CreateEntryContent() {
 
             if (res.ok) {
                 alert('登録しました');
-                router.push(`/products/${productId}`);
+                if (productId) {
+                    router.push(`/products/${productId}`);
+                } else {
+                    router.push('/lotteries');
+                }
             } else {
                 alert('登録に失敗しました');
             }
@@ -277,9 +300,31 @@ function CreateEntryContent() {
                 {/* Product Name */}
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4 }}>商品</label>
-                    <div style={{ padding: 8, background: '#eee', borderRadius: 4, color: '#555' }}>
-                        {formData.productName || '読み込み中...'}
-                    </div>
+                    {productId ? (
+                        // 既存: 固定表示（商品詳細ページからの遷移）
+                        <div style={{ padding: 8, background: '#eee', borderRadius: 4, color: '#555' }}>
+                            {formData.productName || '読み込み中...'}
+                        </div>
+                    ) : (
+                        // 新規: プルダウン表示（抽選一覧ページからの遷移）
+                        <select
+                            style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                            value={formData.productId}
+                            onChange={(e) => {
+                                const selectedProduct = products.find(p => p.id === e.target.value);
+                                setFormData({
+                                    ...formData,
+                                    productId: e.target.value,
+                                    productName: selectedProduct?.name || ''
+                                });
+                            }}
+                        >
+                            <option value="">選択してください</option>
+                            {products.map(product => (
+                                <option key={product.id} value={product.id}>{product.name}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
 
                 {/* Shop Name */}
@@ -301,10 +346,10 @@ function CreateEntryContent() {
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4 }}>ステータス</label>
                     <select
-                        style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box', backgroundColor: '#eee' }}
+                        style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box', backgroundColor: productId ? '#eee' : '#fff' }}
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        disabled
+                        disabled={!!productId}
                     >
                         {statusOptions.map(opt => (
                             <option key={opt.code} value={opt.code}>{opt.name}</option>
@@ -343,17 +388,19 @@ function CreateEntryContent() {
                                 style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
                                 value={formData[item.field as keyof EntryForm] as string}
                                 onChange={(e) => handleDateChange(item.field as keyof EntryForm, e.target.value)}
-                                disabled={!formData[item.field as keyof EntryForm]}
+                                disabled={!!(productId && !formData[item.field as keyof EntryForm])}
                             />
-                            {/* "Undecided" checkbox logic */}
-                            <label style={{ display: 'flex', alignItems: 'center' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={!formData[item.field as keyof EntryForm]}
-                                    onChange={() => toggleUndecided(item.field as keyof EntryForm)}
-                                />
-                                <span style={{ fontSize: 12, marginLeft: 4 }}>未定</span>
-                            </label>
+                            {/* "Undecided" checkbox logic - only show when productId exists */}
+                            {productId && (
+                                <label style={{ display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={!formData[item.field as keyof EntryForm]}
+                                        onChange={() => toggleUndecided(item.field as keyof EntryForm)}
+                                    />
+                                    <span style={{ fontSize: 12, marginLeft: 4 }}>未定</span>
+                                </label>
+                            )}
                         </div>
                     </div>
                 ))}

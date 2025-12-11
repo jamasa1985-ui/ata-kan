@@ -43,6 +43,7 @@ function CreatePurchaseContent() {
     const [loading, setLoading] = useState(false);
     const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
     const [shopOptions, setShopOptions] = useState<{ id: string, name: string }[]>([]);
+    const [products, setProducts] = useState<{ id: string, name: string }[]>([]);
 
     const [formData, setFormData] = useState<PurchaseForm>({
         productId: productId || '',
@@ -118,10 +119,26 @@ function CreatePurchaseContent() {
             }
         };
 
+        const fetchProducts = async () => {
+            if (!productId) {
+                try {
+                    const res = await fetch('/api/products?all=true');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const filtered = data
+                            .filter((p: any) => p.displayFlag === true)
+                            .sort((a: any, b: any) => b.id.localeCompare(a.id));
+                        setProducts(filtered);
+                    }
+                } catch (e) { console.error(e); }
+            }
+        };
+
         fetchOptions();
         fetchShops();
         fetchMembers();
         fetchProduct();
+        fetchProducts();
     }, [productId]);
 
     const handleRegister = async () => {
@@ -160,7 +177,11 @@ function CreatePurchaseContent() {
 
             if (res.ok) {
                 alert('登録しました');
-                router.push(`/products/${productId}/purchases`);
+                if (productId) {
+                    router.push(`/products/${productId}/purchases`);
+                } else {
+                    router.push('/purchases');
+                }
             } else {
                 alert('登録に失敗しました');
             }
@@ -199,7 +220,7 @@ function CreatePurchaseContent() {
         if (productId) {
             router.push(`/products/${productId}/purchases`);
         } else {
-            router.back();
+            router.push('/purchases');
         }
     };
 
@@ -221,9 +242,31 @@ function CreatePurchaseContent() {
                 {/* Product Name */}
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4 }}>商品</label>
-                    <div style={{ padding: 8, background: '#eee', borderRadius: 4, color: '#555' }}>
-                        {formData.productName || '読み込み中...'}
-                    </div>
+                    {productId ? (
+                        // 既存: 固定表示（購入管理画面からの遷移）
+                        <div style={{ padding: 8, background: '#eee', borderRadius: 4, color: '#555' }}>
+                            {formData.productName || '読み込み中...'}
+                        </div>
+                    ) : (
+                        // 新規: プルダウン表示（購入一覧ページからの遷移）
+                        <select
+                            style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                            value={formData.productId}
+                            onChange={(e) => {
+                                const selectedProduct = products.find(p => p.id === e.target.value);
+                                setFormData({
+                                    ...formData,
+                                    productId: e.target.value,
+                                    productName: selectedProduct?.name || ''
+                                });
+                            }}
+                        >
+                            <option value="">選択してください</option>
+                            {products.map(product => (
+                                <option key={product.id} value={product.id}>{product.name}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
 
                 {/* Shop Name */}

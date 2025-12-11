@@ -27,24 +27,10 @@ export async function POST(req: NextRequest) {
 
         // Transaction for Sequence ID generation and Atomic Write
         const newEntryId = await adminDb.runTransaction(async (t) => {
-            // Get sequence doc (assume single doc or take first)
-            const seqSnapshot = await t.get(entriesSeqRef.limit(1));
-            if (seqSnapshot.empty) {
-                throw new Error('Entries sequence not initialized');
-            }
-            const seqDoc = seqSnapshot.docs[0];
-            const currentSeq = seqDoc.data().seq;
-            if (typeof currentSeq !== 'number') {
-                throw new Error('Invalid sequence format');
-            }
-
-            const nextSeq = currentSeq + 1;
-            const docId = currentSeq.toString();
+            const { getNextSequence } = await import('@/lib/sequence');
+            const docId = await getNextSequence(t, 'entry');
 
             const newDocRef = entriesRef.doc(docId);
-
-            // 1. Update Sequence
-            t.update(seqDoc.ref, { seq: nextSeq });
 
             // 2. Create Entry
             t.set(newDocRef, entryData);
