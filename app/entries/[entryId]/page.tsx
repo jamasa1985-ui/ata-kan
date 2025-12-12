@@ -105,10 +105,42 @@ export default function EditEntryPage({ params }: PageProps) {
         if (!confirm('更新してもよろしいですか？')) return;
 
         try {
+            // Calculate correct status based on member statuses
+            let calculatedStatus = formData.status;
+            const members = formData.purchaseMembers || [];
+
+            if (members.length > 0) {
+                const statuses = members.map(m => Number(m.status || 0));
+                // Priority Logic
+                if (statuses.includes(40)) {
+                    calculatedStatus = 40 as any; // Purchased
+                } else if (statuses.includes(30)) {
+                    calculatedStatus = 30 as any; // Won
+                } else if (statuses.includes(10) || statuses.includes(0)) {
+                    // applying or not applied (in progress)
+                    if (statuses.every(s => s === 0)) {
+                        calculatedStatus = 0 as any; // All Not Applied
+                    } else {
+                        calculatedStatus = 10 as any; // Applying (Mixed or just 10)
+                    }
+                } else if (statuses.includes(20)) {
+                    // Applied (and no 40, 30, 10, 0) -> [20, 20] or [20, 99]
+                    calculatedStatus = 20 as any;
+                } else if (statuses.every(s => s === 99)) {
+                    calculatedStatus = 99 as any; // Lost
+                }
+                // Else keep current
+            }
+
+            const payload = {
+                ...formData,
+                status: calculatedStatus
+            };
+
             const res = await fetch(`/api/entries/${entryId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {
@@ -216,19 +248,37 @@ export default function EditEntryPage({ params }: PageProps) {
                 alert('既に追加されています');
                 return;
             }
-            setFormData(prev => ({
-                ...prev,
-                purchaseMembers: [...(prev.purchaseMembers || []), { ...memberToAdd, status: 0 }]
-            }));
+            setFormData(prev => {
+                const currentStatus = Number(prev.status);
+                let newStatus = prev.status;
+                // If status is Applied (20), Won (30), Purchased (40), or Lost (99), revert to Applying (10)
+                if ([20, 30, 40, 99].includes(currentStatus)) {
+                    newStatus = 10 as any;
+                }
+                return {
+                    ...prev,
+                    status: newStatus,
+                    purchaseMembers: [...(prev.purchaseMembers || []), { ...memberToAdd, status: 0 }]
+                };
+            });
             setSelectedMemberId('');
         }
     };
 
     const handleRemoveMember = (memberId: string) => {
-        setFormData(prev => ({
-            ...prev,
-            purchaseMembers: (prev.purchaseMembers || []).filter(m => m.id !== memberId)
-        }));
+        setFormData(prev => {
+            const currentStatus = Number(prev.status);
+            let newStatus = prev.status;
+            // If status is Applied (20), Won (30), Purchased (40), or Lost (99), revert to Applying (10)
+            if ([20, 30, 40, 99].includes(currentStatus)) {
+                newStatus = 10 as any;
+            }
+            return {
+                ...prev,
+                status: newStatus,
+                purchaseMembers: (prev.purchaseMembers || []).filter(m => m.id !== memberId)
+            };
+        });
     };
 
     if (loading) return <div style={{ padding: 16 }}>読み込み中...</div>;

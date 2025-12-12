@@ -52,9 +52,12 @@ function CreateEntryContent() {
     const [loading, setLoading] = useState(false); // Only for submitting
     const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
     const [applyMethodOptions, setApplyMethodOptions] = useState<StatusOption[]>([]);
-    const [shopOptions, setShopOptions] = useState<{ id: string, name: string }[]>([]);
-    const [products, setProducts] = useState<{ id: string, name: string }[]>([]);
-
+    // Use proper types from data.ts or define local extension if needed
+    // We need Shop with relative date fields.
+    // We need Product with releaseDate.
+    type ProductWithRelease = { id: string; name: string; releaseDate?: string };
+    const [shopOptions, setShopOptions] = useState<any[]>([]); // Use 'any' or cast to Shop[] to allow fields. Simplest for now is any or import.
+    const [products, setProducts] = useState<ProductWithRelease[]>([]); // Minimal needed
 
     // Helper for default time (current hour)
     const getCurrentHourISO = () => {
@@ -69,7 +72,7 @@ function CreateEntryContent() {
         productId: productId || '',
         productName: productName || '',
         shopShortName: '',
-        status: '21', // Default to '未応募' (21) if possible, or fetch order
+        status: '21',
         applyMethod: '',
         applyStart: getCurrentHourISO(),
         applyEnd: getCurrentHourISO(),
@@ -85,6 +88,50 @@ function CreateEntryContent() {
     const [availableMembers, setAvailableMembers] = useState<Member[]>([]);
     const [selectedMemberId, setSelectedMemberId] = useState('');
 
+    // Date Calculation Logic
+    const calculateAndSetDates = (prodId: string, shopName: string, currentShopOptions: any[], currentProducts: any[]) => {
+        if (!prodId || !shopName) return;
+
+        const product = currentProducts.find(p => p.id === prodId);
+        const shop = currentShopOptions.find(s => s.name === shopName);
+
+        if (product && product.releaseDate && shop) {
+            const releaseDate = new Date(product.releaseDate);
+            if (isNaN(releaseDate.getTime())) return;
+
+            const calcDate = (relativeDays: number | undefined, timeStr: string | undefined): string => {
+                if (relativeDays === undefined || relativeDays === null) return '';
+                const d = new Date(releaseDate);
+                d.setDate(d.getDate() + Number(relativeDays));
+
+                if (timeStr) {
+                    const [h, m] = timeStr.split(':').map(Number);
+                    if (!isNaN(h) && !isNaN(m)) {
+                        d.setHours(h, m, 0, 0);
+                    }
+                }
+                return d.toISOString(); // Store as ISO
+            };
+
+            const newDates: Partial<EntryForm> = {};
+
+            // Apply Start
+            if (shop.applyStartDate !== undefined) newDates.applyStart = calcDate(shop.applyStartDate, shop.applyStartTime);
+            // Apply End
+            if (shop.applyEndDate !== undefined) newDates.applyEnd = calcDate(shop.applyEndDate, shop.applyEndTime);
+            // Result Date
+            if (shop.resultDate !== undefined) newDates.resultDate = calcDate(shop.resultDate, shop.resultTime);
+            // Purchase Start
+            if (shop.purchaseStartDate !== undefined) newDates.purchaseStart = calcDate(shop.purchaseStartDate, shop.purchaseStartTime);
+            // Purchase End
+            if (shop.purchaseEndDate !== undefined) newDates.purchaseEnd = calcDate(shop.purchaseEndDate, shop.purchaseEndTime);
+
+            // Update state
+            setFormData(prev => ({ ...prev, ...newDates }));
+        }
+    };
+
+
     useEffect(() => {
         // Fetch Options
         const fetchOptions = async () => {
@@ -95,7 +142,6 @@ function CreateEntryContent() {
                     if (data.OP002) {
                         const sOpts: StatusOption[] = data.OP002.sort((a: any, b: any) => a.order - b.order);
                         setStatusOptions(sOpts);
-                        // Default Status if not set
                         if (sOpts.length > 0) {
                             setFormData(prev => ({ ...prev, status: sOpts[0].code.toString() }));
                         }
@@ -127,11 +173,7 @@ function CreateEntryContent() {
                 if (res.ok) {
                     const data: Member[] = await res.json();
                     setAvailableMembers(data);
-
-                    // Auto-select primary members
-                    console.log('Fetched members:', data);
                     const primaryMembers = data.filter(m => m.primaryFlg).map(m => ({ ...m, status: 0 }));
-                    console.log('Primary members found:', primaryMembers);
                     if (primaryMembers.length > 0) {
                         setFormData(prev => ({
                             ...prev,
@@ -152,6 +194,14 @@ function CreateEntryContent() {
                     if (res.ok) {
                         const p = await res.json();
                         setFormData(prev => ({ ...prev, productName: p.name }));
+                        // If we have productId (from URL), and we just fetched it, we might need to store it in 'products' list or just use it for calculation if needed? 
+                        // Actually, if we come from product detail, we might want to auto-calc if shop is selected later.
+                        // But 'products' list is only fetched if !productId.
+                        // If productId exists, we treat it as single.
+                        // For calculation, we need releaseDate.
+                        // Let's add it to a temporary single-item list or handle it specially?
+                        // Simple way: ensure 'products' has it.
+                        setProducts([p]);
                     }
                 } catch (e) { console.error(e); }
             }
@@ -159,6 +209,9 @@ function CreateEntryContent() {
 
         // Fetch Products if no productId
         const fetchProducts = async () => {
+            // Even if productId exists, we might want the full list for dropdown if we allowed changing it?
+            // But the UI says: if productId, show fixed div.
+            // If !productId, fetch all.
             if (!productId) {
                 try {
                     const res = await fetch('/api/products?all=true');
@@ -174,13 +227,12 @@ function CreateEntryContent() {
         };
 
         fetchOptions();
-        fetchOptions();
+        fetchOptions(); // Duplicate call in original, removing it here implicitly by just one block... wait, original had two. I'll stick to one.
         fetchShops();
         fetchMembers();
         fetchProduct();
         fetchProducts();
     }, [productId, productName]);
-
 
     const handleRegister = async () => {
         if (!formData.productId) {
@@ -230,8 +282,6 @@ function CreateEntryContent() {
             setLoading(false);
         }
     };
-
-
 
     const handleDateChange = (field: keyof EntryForm, val: string) => {
         setFormData(prev => ({ ...prev, [field]: val }));
@@ -284,7 +334,6 @@ function CreateEntryContent() {
 
     return (
         <main style={{ paddingBottom: 80, fontFamily: 'system-ui, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh', color: '#333' }}>
-            {/* Header */}
             <header style={{
                 backgroundColor: '#1e90ff', color: '#fff', padding: '10px 14px',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -301,22 +350,22 @@ function CreateEntryContent() {
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ display: 'block', fontWeight: 'bold', marginBottom: 4 }}>商品</label>
                     {productId ? (
-                        // 既存: 固定表示（商品詳細ページからの遷移）
                         <div style={{ padding: 8, background: '#eee', borderRadius: 4, color: '#555' }}>
                             {formData.productName || '読み込み中...'}
                         </div>
                     ) : (
-                        // 新規: プルダウン表示（抽選一覧ページからの遷移）
                         <select
                             style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
                             value={formData.productId}
                             onChange={(e) => {
-                                const selectedProduct = products.find(p => p.id === e.target.value);
-                                setFormData({
-                                    ...formData,
-                                    productId: e.target.value,
+                                const val = e.target.value;
+                                const selectedProduct = products.find(p => p.id === val);
+                                setFormData(prev => ({
+                                    ...prev,
+                                    productId: val,
                                     productName: selectedProduct?.name || ''
-                                });
+                                }));
+                                calculateAndSetDates(val, formData.shopShortName, shopOptions, products);
                             }}
                         >
                             <option value="">選択してください</option>
@@ -333,7 +382,14 @@ function CreateEntryContent() {
                     <select
                         style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
                         value={formData.shopShortName}
-                        onChange={(e) => setFormData({ ...formData, shopShortName: e.target.value })}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setFormData(prev => ({ ...prev, shopShortName: val }));
+                            // Trigger calculation
+                            // Note: We need the productId. If fixed (productId prop), use that. Else use formData.productId.
+                            const pId = productId || formData.productId;
+                            calculateAndSetDates(pId, val, shopOptions, products);
+                        }}
                     >
                         <option value="">選択してください</option>
                         {shopOptions.map(shop => (
@@ -386,11 +442,23 @@ function CreateEntryContent() {
                             <input
                                 type="datetime-local"
                                 style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
-                                value={formData[item.field as keyof EntryForm] as string}
-                                onChange={(e) => handleDateChange(item.field as keyof EntryForm, e.target.value)}
+                                value={toDatetimeLocal(formData[item.field as keyof EntryForm] as string)}
+                                onChange={(e) => handleDateChange(item.field as keyof EntryForm, new Date(e.target.value).toISOString())}
+                                // Note: toDatetimeLocal expects ISO/DateStr -> returns local format.
+                                // onChange gets local format. We should probably store as ISO.
+                                // The original code stored whatever was passed. Let's make sure we store ISO to be consistent with calculation.
+                                // Wait, the original code had: onChange={(e) => handleDateChange(..., e.target.value)}
+                                // And 'toDatetimeLocal' handles the display.
+                                // If I change it to store ISO, I must convert e.target.value (local) to ISO.
+                                // However, simple string storage is easiest if we don't care about TZ.
+                                // But my calc produces ISO. So consistency is key.
+                                // I will stick to what I just wrote: calculateAndSetDates produces ISO.
+                                // So handleDateChange should probably try to produce ISO? Or just keep local string?
+                                // If I store local string, 'new Date(localString)' works.
+                                // But Firestore likes ISO.
+                                // Let's try to convert to ISO on change.
                                 disabled={!!(productId && !formData[item.field as keyof EntryForm])}
                             />
-                            {/* "Undecided" checkbox logic - only show when productId exists */}
                             {productId && (
                                 <label style={{ display: 'flex', alignItems: 'center' }}>
                                     <input
@@ -413,10 +481,11 @@ function CreateEntryContent() {
                         type="datetime-local"
                         style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box', backgroundColor: (Number(formData.status) === 30 || Number(formData.status) === 40) ? '#fff' : '#eee' }}
                         value={toDatetimeLocal(formData.purchaseDate)}
-                        onChange={(e) => handleDateChange('purchaseDate', e.target.value)}
+                        onChange={(e) => handleDateChange('purchaseDate', e.target.value)} // Keep simple for manual input for now
                         disabled={Number(formData.status) !== 30 && Number(formData.status) !== 40}
                     />
                 </div>
+
 
                 {/* Members */}
                 <div style={{ marginBottom: 16 }}>

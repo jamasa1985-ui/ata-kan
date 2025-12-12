@@ -26,6 +26,26 @@ export type Member = {
     status?: number;      // 0: 未購入? (Entry内でのステータス用)
 };
 
+// 店舗マスタ
+export type Shop = {
+    id: string;
+    name: string;
+    shortName: string;
+    order: number;
+    displayFlag: number; // 0 or 1
+    address?: string;    // from 住所
+    purchaseStartDate?: number;
+    purchaseStartTime?: string;
+    purchaseEndDate?: number;
+    purchaseEndTime?: string;
+    applyStartDate?: number;
+    applyStartTime?: string;
+    applyEndDate?: number;
+    applyEndTime?: string;
+    resultDate?: number;
+    resultTime?: string;
+};
+
 // 応募データ
 export type Entry = {
     id: string;

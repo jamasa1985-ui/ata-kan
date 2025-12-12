@@ -18,7 +18,6 @@ export async function POST(req: NextRequest) {
         // Explicitly map productId to productCode as per existing schema
         const newEntry = {
             ...body,
-            productCode: body.productId, // Map productId -> productCode
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
@@ -42,11 +41,30 @@ export async function POST(req: NextRequest) {
                     const memberId = member.id || adminDb.collection('_').doc().id; // generate ID if missing
                     const memberDocRef = newDocRef.collection('purchaseMembers').doc(memberId);
 
+                    // Extract items from member object
+                    const { items, ...memberDataWithoutItems } = member;
+
                     const memberData = {
-                        ...member,
+                        ...memberDataWithoutItems,
                         status: member.status !== undefined ? member.status : 0
                     };
                     t.set(memberDocRef, memberData);
+
+                    // 4. Create Purchase Items (Subcollection) if exists
+                    if (items && Array.isArray(items) && items.length > 0) {
+                        const itemsCollectionRef = memberDocRef.collection('purchaseItems');
+                        items.forEach((item: any) => {
+                            if (item.quantity > 0) {
+                                const itemDocRef = itemsCollectionRef.doc(); // Auto-ID
+                                t.set(itemDocRef, {
+                                    code: item.code,
+                                    shortName: item.shortName,
+                                    quantity: item.quantity,
+                                    amount: item.amount
+                                });
+                            }
+                        });
+                    }
                 });
             }
 

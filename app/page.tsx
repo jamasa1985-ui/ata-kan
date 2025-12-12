@@ -268,7 +268,6 @@ export default function Home() {
 
 
 
-      {/* フッター (ボトムナビゲーション) */}
       <footer
         style={{
           position: 'fixed',
@@ -307,6 +306,17 @@ export default function Home() {
         >
           <span style={{ fontSize: '20px' }}>📅</span>
           スケジュール
+        </Link>
+        <Link
+          href="/purchases/create"
+          style={{
+            textDecoration: 'none',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+            color: '#666', fontSize: '10px'
+          }}
+        >
+          <span style={{ fontSize: '20px' }}>📝</span>
+          購入登録
         </Link>
         <button
           onClick={() => setIsMenuOpen(true)}

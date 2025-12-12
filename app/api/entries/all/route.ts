@@ -41,8 +41,8 @@ export async function GET() {
 
                 return {
                     id: doc.id,
-                    productId: data.productCode || data.productId,
-                    productName: productsMap[data.productCode || data.productId]?.name || '不明な商品',
+                    productId: data.productId,
+                    productName: productsMap[data.productId]?.name || '不明な商品',
                     shopShortName: data.shopShortName || '',
                     status: data.status,
                     applyMethod: data.applyMethod,

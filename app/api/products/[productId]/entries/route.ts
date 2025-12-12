@@ -13,8 +13,7 @@ export async function GET(request: Request, context: RouteContext) {
         const { productId } = await context.params;
 
         const entriesRef = adminDb.collection('entries');
-        // Firestore field is 'productCode', not 'productId'
-        const snapshot = await entriesRef.where('productCode', '==', productId).get();
+        const snapshot = await entriesRef.where('productId', '==', productId).get();
 
         const entries = await Promise.all(snapshot.docs.map(async (doc) => {
             const data = doc.data();
@@ -30,7 +29,7 @@ export async function GET(request: Request, context: RouteContext) {
                 id: doc.id,
                 ...data, // Spread original data
                 // Explicitly map fields to match Entry type
-                productId: data.productCode,
+                productId: data.productId,
                 productName: data.productShortName,
                 shopShortName: data.shopShortName || data.storeName || '店舗名なし', // Fallback with explicit text
                 status: data.status,

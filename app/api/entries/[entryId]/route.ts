@@ -22,8 +22,8 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
 
         let productName = data.productShortName;
         // If productName is missing, fetch from products collection
-        if (!productName && data.productCode) {
-            const productDoc = await adminDb.collection('products').doc(data.productCode).get();
+        if (!productName && data.productId) {
+            const productDoc = await adminDb.collection('products').doc(data.productId).get();
             if (productDoc.exists) {
                 const productData = productDoc.data();
                 productName = productData?.shortName || productData?.name;
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Params }) {
             id: doc.id,
             ...data,
             // Map fields to match Entry type
-            productId: data.productCode,
+            productId: data.productId,
             productName: productName || '商品名不明',
             shopShortName: data.shopShortName || data.storeName || '店舗名なし',
             // Ensure dates are strings or handle them consistent with other APIs if needed

@@ -2,15 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-
-type Shop = {
-    id: string;
-    name: string;
-    shortName?: string;
-    displayFlag: boolean;
-    order: number;
-    address?: string;
-};
+import { Shop } from '../../data';
 
 export default function ShopListPage() {
     const [shops, setShops] = useState<Shop[]>([]);
@@ -62,7 +54,10 @@ export default function ShopListPage() {
                 alignItems: 'center',
                 maxWidth: '600px',
                 margin: '0 auto 24px auto',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100
             }}>
                 <div>
                     <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>店舗マスタ一覧</h1>

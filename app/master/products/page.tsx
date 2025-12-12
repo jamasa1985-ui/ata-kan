@@ -75,7 +75,10 @@ export default function ProductListPage() {
                 alignItems: 'center',
                 maxWidth: '600px', // 一覧は少し広めに
                 margin: '0 auto 24px auto',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100
             }}>
                 <div>
                     <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>商品マスタ一覧</h1>
