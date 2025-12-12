@@ -154,6 +154,81 @@ export default function Home() {
         </div>
       </section>
 
+      {/* グローバルナビゲーションボタン */}
+      <section style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+        {/* 抽選情報ボタン (青) */}
+        <Link href="/lotteries?mode=info" style={{ textDecoration: 'none' }}>
+          <button
+            style={{
+              backgroundColor: '#007bff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 4px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            }}
+          >
+            <span style={{ fontSize: '20px', marginBottom: '4px' }}>🎟️</span>
+            抽選情報
+          </button>
+        </Link>
+
+        {/* 当落管理ボタン (黄/オレンジ) */}
+        <Link href="/lotteries?mode=results" style={{ textDecoration: 'none' }}>
+          <button
+            style={{
+              backgroundColor: '#ffc107',
+              color: '#000',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 4px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            }}
+          >
+            <span style={{ fontSize: '20px', marginBottom: '4px' }}>📊</span>
+            当落管理
+          </button>
+        </Link>
+
+        {/* 購入管理ボタン (赤) */}
+        <Link href="/purchases?mode=management" style={{ textDecoration: 'none' }}>
+          <button
+            style={{
+              backgroundColor: '#dc3545',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '12px 4px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            }}
+          >
+            <span style={{ fontSize: '20px', marginBottom: '4px' }}>🛒</span>
+            購入管理
+          </button>
+        </Link>
+      </section>
+
       {/* 商品一覧 */}
       <section style={{ marginTop: '16px' }}>
         {loading ? (

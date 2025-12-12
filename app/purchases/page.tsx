@@ -1,8 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
-import { Entry, Product, Member } from '../data';
+import { useEffect, useMemo, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { Entry as DataEntry, Product, Member } from '../data';
+
+type Entry = {
+    id: string;
+    productId: string;
+    productName: string;
+    shopShortName: string;
+    status: number;
+    applyMethod?: number;
+    applyStart?: string;
+    applyEnd?: string;
+    resultDate?: string;
+    purchaseStart?: string;
+    purchaseEnd?: string;
+    purchaseDate?: string;
+    url?: string;
+    memo?: string;
+    purchaseMembers?: Member[];
+};
 
 type StatusOption = {
     code: number;
@@ -21,7 +40,9 @@ type MemberWithItems = Member & {
     purchaseItems?: PurchaseItem[];
 };
 
-export default function PurchasesPage() {
+function PurchasesContent() {
+    const searchParams = useSearchParams();
+    const mode = searchParams.get('mode');
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
     const [productEntries, setProductEntries] = useState<Entry[]>([]);
@@ -92,8 +113,37 @@ export default function PurchasesPage() {
                     throw new Error('応募データの取得に失敗しました');
                 }
                 const data: Entry[] = await response.json();
-                // ステータス40（購入済）のみ表示
-                const filtered = data.filter(e => e.status.toString() === '40');
+
+                // Filter Logic
+                let filtered: Entry[] = [];
+                if (mode === 'management') {
+                    // 購入管理: statusが30,40のデータかつpurchaseEndが14日経過していないもの
+                    filtered = data.filter(e => {
+                        const s = e.status;
+                        if (s !== 30 && s !== 40) return false;
+
+                        // purchaseEnd check
+                        // "14日経過していない" meaning 14 days have NOT passed since purchaseEnd?
+                        // Or purchaseEnd is within the last 14 days?
+                        // Usually: today <= purchaseEnd + 14 days.
+                        // Or simply: diff(today, purchaseEnd) <= 14.
+                        if (!e.purchaseEnd) return true; // Keep if no date? Or drop? Usually keep if active.
+
+                        const purchaseEnd = new Date(e.purchaseEnd);
+                        const now = new Date();
+                        const diffTime = now.getTime() - purchaseEnd.getTime();
+                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+                        // If diffDays > 14, it means more than 14 days have passed since deadline.
+                        if (diffDays > 14) return false;
+
+                        return true;
+                    });
+                } else {
+                    // Default: ステータス40（購入済）のみ表示
+                    filtered = data.filter(e => e.status.toString() === '40');
+                }
+
                 setProductEntries(filtered);
 
                 // Fetch purchase items for all members
@@ -121,7 +171,7 @@ export default function PurchasesPage() {
         };
 
         fetchEntries();
-    }, []);
+    }, [mode]);
 
     const getStatusName = (statusCode: string | number) => {
         return statusMap[statusCode.toString()] || statusCode.toString();
@@ -209,7 +259,7 @@ export default function PurchasesPage() {
                 }}
             >
                 <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                    購入一覧
+                    {mode === 'management' ? '購入管理' : '購入一覧'}
                 </div>
                 <Link href="/" style={{
                     backgroundColor: '#fff',
@@ -614,5 +664,12 @@ export default function PurchasesPage() {
                 </div>
             )}
         </main>
+    );
+}
+export default function PurchasesPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <PurchasesContent />
+        </Suspense>
     );
 }

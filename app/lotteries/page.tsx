@@ -1,8 +1,9 @@
 // app/lotteries/page.tsx
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 type Entry = {
     id: string;
@@ -30,7 +31,9 @@ type StatusOption = {
 
 type StatusFilter = 'すべて' | string;
 
-export default function LotteriesPage() {
+function LotteriesContent() {
+    const searchParams = useSearchParams();
+    const mode = searchParams.get('mode');
     const [entries, setEntries] = useState<Entry[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -158,7 +161,33 @@ export default function LotteriesPage() {
     // Filtered Entries
     const filteredEntries = useMemo(() => {
         const filtered = entries.filter((e) => {
-            // Status filter
+            // Mode-based filtering
+            if (mode === 'info') {
+                // 抽選情報: entriesのstatusが99以外のものは全て
+                // statusが99のものはresultDateが14日経過していないもの
+                if (e.status === 99) {
+                    if (!e.resultDate) return false;
+                    const resultDate = new Date(e.resultDate);
+                    const now = new Date();
+                    const diffTime = now.getTime() - resultDate.getTime();
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    // resultDateが14日以内のもの (未来の日付も含むならdiffDays < 14)
+                    // "14日経過していない" = diffDays <= 14
+                    if (diffDays > 14) return false;
+                }
+            } else if (mode === 'results') {
+                // 当落管理: entriesのstatusが20,30,99のもの全て
+                const validStatuses = [20, 30, 99];
+                if (!validStatuses.includes(e.status)) return false;
+            }
+
+            // Normal filters (User manually selecting dropdowns still apply WITHIN the mode)
+            // But usually "mode" implies a preset view.
+            // Let's assume User filters (Product/Shop/Status dropdowns) act as ADDITIONAL filters
+            // on top of the mode-restricted dataset.
+
+            // Status filter (Manual)
+
             const sName = getStatusName(e.status);
             if (statusFilter !== 'すべて' && sName !== statusFilter) {
                 return false;
@@ -211,7 +240,7 @@ export default function LotteriesPage() {
             if (!dateB) return -1;
             return new Date(dateA).getTime() - new Date(dateB).getTime();
         });
-    }, [entries, statusFilter, productFilter, shopFilter, statusMap, statusOptions]);
+    }, [entries, statusFilter, productFilter, shopFilter, statusMap, statusOptions, mode]);
 
     // Header Info Helper
     const getEntryHeaderInfo = (entry: Entry, statusName: string) => {
@@ -269,7 +298,7 @@ export default function LotteriesPage() {
                 }}
             >
                 <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                    抽選一覧
+                    {mode === 'info' ? '抽選情報' : mode === 'results' ? '当落管理' : '抽選一覧'}
                 </div>
                 <Link href="/" style={{
                     backgroundColor: '#fff',
@@ -867,5 +896,12 @@ export default function LotteriesPage() {
             )}
 
         </main>
+    );
+}
+export default function LotteriesPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <LotteriesContent />
+        </Suspense>
     );
 }
