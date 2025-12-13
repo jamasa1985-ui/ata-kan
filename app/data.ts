@@ -51,6 +51,7 @@ export type Entry = {
     id: string;
     productId: string;
     productName: string; // productShortName in Firestore
+    shopId?: string; // Shop ID
     shopShortName: string; // Firestore field
     status: EntryStatus;
 

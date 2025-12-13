@@ -16,6 +16,7 @@ type StatusOption = {
 type EntryForm = {
     productId: string;
     productName: string;
+    shopId: string;
     shopShortName: string;
     status: string; // code string
     applyMethod: string; // code string
@@ -72,6 +73,7 @@ function CreateEntryContent() {
     const [formData, setFormData] = useState<EntryForm>({
         productId: productId || '',
         productName: productName || '',
+        shopId: '',
         shopShortName: '',
         status: '21',
         applyMethod: '',
@@ -387,7 +389,12 @@ function CreateEntryContent() {
                         value={formData.shopShortName}
                         onChange={(e) => {
                             const val = e.target.value;
-                            setFormData(prev => ({ ...prev, shopShortName: val }));
+                            const selectedShop = shopOptions.find(s => s.name === val);
+                            setFormData(prev => ({
+                                ...prev,
+                                shopShortName: val,
+                                shopId: selectedShop ? selectedShop.id : ''
+                            }));
                             // Trigger calculation
                             // Note: We need the productId. If fixed (productId prop), use that. Else use formData.productId.
                             const pId = productId || formData.productId;
