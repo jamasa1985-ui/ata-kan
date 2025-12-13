@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Header from '../../_components/Header';
 import { useEffect, useState } from 'react';
 import { Shop } from '../../data';
 
@@ -42,45 +43,30 @@ export default function ShopListPage() {
     }, [searchQuery, shops]);
 
     return (
-        <main style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', fontFamily: 'system-ui, sans-serif', color: '#333' }}>
-            <header style={{
-                backgroundColor: '#1e90ff',
-                color: '#fff',
-                padding: '12px 16px',
-                borderRadius: '0 0 10px 10px',
-                marginBottom: '24px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                maxWidth: '600px',
-                margin: '0 auto 24px auto',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                position: 'sticky',
-                top: 0,
-                zIndex: 100
-            }}>
-                <div>
-                    <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>店舗マスタ一覧</h1>
-                    <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.9 }}>
-                        <Link href="/master" style={{ color: '#fff', textDecoration: 'underline' }}>メニュー</Link> &gt; 店舗マスタ
-                    </div>
-                </div>
-                <Link href="/master/shops/create">
-                    <button style={{
-                        backgroundColor: '#fff',
-                        color: '#1e90ff',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '20px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                        fontSize: '14px',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                    }}>
-                        + 新規
-                    </button>
-                </Link>
-            </header>
+        <main style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', paddingTop: '80px', fontFamily: 'system-ui, sans-serif', color: '#333' }}>
+            <Header
+                title="店舗マスタ一覧"
+                backLinkText="メニュー"
+                backLinkHref="/master"
+                maxWidth="600px"
+                rightContent={
+                    <Link href="/master/shops/create">
+                        <button style={{
+                            backgroundColor: '#fff',
+                            color: '#1e90ff',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '20px',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '14px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }}>
+                            + 新規
+                        </button>
+                    </Link>
+                }
+            />
 
             {/* 検索ボックス */}
             <div style={{ maxWidth: '600px', margin: '0 auto 16px auto', padding: '0 16px' }}>

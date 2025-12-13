@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Header from '../../../_components/Header';
 import { use, useEffect, useMemo, useState } from 'react';
 import { Entry, Product, Member } from '../../../data';
 
@@ -258,7 +259,7 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         <main
             style={{
                 minHeight: '100vh',
-                padding: '12px 12px 200px 12px',
+                padding: '80px 12px 200px 12px', // Top 80px for header
                 fontFamily: 'system-ui, sans-serif',
                 backgroundColor: '#f5f5f5',
                 color: '#333',
@@ -267,32 +268,24 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                 position: 'relative',
             }}
         >
-            <header
-                style={{
-                    marginBottom: '10px',
-                    padding: '10px 14px',
-                    backgroundColor: '#1e90ff',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                }}
-            >
-                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                    購入管理
-                </div>
-                <Link href="/" style={{
-                    backgroundColor: '#fff',
-                    color: '#333',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    textDecoration: 'none',
-                    fontSize: '12px'
-                }}>
-                    TOPへ戻る
-                </Link>
-            </header>
+            <Header
+                title="購入管理"
+                maxWidth={480}
+                backgroundColor="#1e90ff"
+                color="#fff"
+                rightContent={
+                    <Link href="/" style={{
+                        backgroundColor: '#fff',
+                        color: '#333',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        textDecoration: 'none',
+                        fontSize: '12px'
+                    }}>
+                        TOPへ戻る
+                    </Link>
+                }
+            />
 
             <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px' }}>{product.name}</div>
 

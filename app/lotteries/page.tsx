@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import Header from '../_components/Header';
 import { useSearchParams } from 'next/navigation';
 
 type Entry = {
@@ -276,7 +277,7 @@ function LotteriesContent() {
         <main
             style={{
                 minHeight: '100vh',
-                padding: '12px 12px 80px 12px',
+                padding: '80px 12px 80px 12px',
                 fontFamily: 'system-ui, sans-serif',
                 backgroundColor: '#f5f5f5',
                 color: '#333',
@@ -285,32 +286,7 @@ function LotteriesContent() {
                 position: 'relative',
             }}
         >
-            <header
-                style={{
-                    marginBottom: '10px',
-                    padding: '10px 14px',
-                    backgroundColor: '#1e90ff',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                }}
-            >
-                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                    {mode === 'info' ? '抽選情報' : mode === 'results' ? '当落管理' : '抽選一覧'}
-                </div>
-                <Link href="/" style={{
-                    backgroundColor: '#fff',
-                    color: '#333',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    textDecoration: 'none',
-                    fontSize: '12px'
-                }}>
-                    TOPへ戻る
-                </Link>
-            </header>
+            <Header title={mode === 'info' ? '抽選情報' : mode === 'results' ? '当落管理' : '抽選一覧'} backLinkText="TOPへ戻る" />
 
             {/* Filters Section */}
             <section
@@ -606,7 +582,7 @@ function LotteriesContent() {
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <Link href={`/entries/${entry.id}?productId=${entry.productId}`}>
+                                        <Link href={`/entries/${entry.id}?productId=${entry.productId}&from=lotteries&mode=${mode || ''}`}>
                                             <button style={{ backgroundColor: '#1e90ff', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
                                                 編集
                                             </button>

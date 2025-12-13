@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Header from '../../../_components/Header';
 
 export type MemberFormData = {
     name: string;
@@ -59,35 +60,18 @@ export default function MemberForm({ initialData, isEdit, memberId, onSubmit, on
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', fontFamily: 'system-ui, sans-serif', color: '#000' }}>
-            <header style={{
-                backgroundColor: '#1e90ff',
-                color: '#fff',
-                padding: '12px 16px',
-                borderRadius: '0 0 10px 10px',
-                marginBottom: '24px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                maxWidth: '600px',
-                margin: '0 auto 24px auto',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                position: 'sticky',
-                top: 0,
-                zIndex: 100
-            }}>
-                <div>
-                    <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>{isEdit ? 'メンバー編集' : 'メンバー登録'}</h1>
-                    <div style={{ fontSize: '11px', marginTop: '4px', opacity: 0.9 }}>
-                        <Link href="/master/members" style={{ color: '#fff', textDecoration: 'underline' }}>一覧に戻る</Link>
-                    </div>
-                </div>
-                {isEdit && (
+        <form onSubmit={handleSubmit} style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', paddingTop: '80px', fontFamily: 'system-ui, sans-serif', color: '#000' }}>
+            <Header
+                title={isEdit ? 'メンバー編集' : 'メンバー登録'}
+                backLinkText="一覧に戻る"
+                backLinkHref="/master/members"
+                maxWidth="600px"
+                rightContent={isEdit && (
                     <div style={{ fontSize: '12px', color: '#fff', backgroundColor: 'rgba(255,255,255,0.2)', padding: '4px 8px', borderRadius: '4px' }}>
                         ID: <span style={{ fontFamily: 'monospace' }}>{memberId}</span>
                     </div>
                 )}
-            </header>
+            />
 
             <div style={{ maxWidth: '600px', margin: '0 auto', padding: '0 16px' }}>
                 <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px' }}>

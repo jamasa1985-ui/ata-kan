@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { use, useEffect, useMemo, useState } from 'react';
+import Header from '../../_components/Header';
 import { Entry, Product } from '../../data';
 
 type StatusOption = {
@@ -253,7 +254,7 @@ export default function ProductEntriesPage({ params }: PageProps) {
         <main
             style={{
                 minHeight: '100vh',
-                padding: '12px 12px 80px 12px', // フッター分空ける
+                padding: '80px 12px 80px 12px', // ヘッダー+フッター分空ける
                 fontFamily: 'system-ui, sans-serif',
                 backgroundColor: '#f5f5f5',
                 color: '#333',
@@ -262,32 +263,8 @@ export default function ProductEntriesPage({ params }: PageProps) {
                 position: 'relative',
             }}
         >
-            <header
-                style={{
-                    marginBottom: '10px',
-                    padding: '10px 14px',
-                    backgroundColor: '#1e90ff',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                }}
-            >
-                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                    抽選情報
-                </div>
-                <Link href="/" style={{
-                    backgroundColor: '#fff',
-                    color: '#333',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    textDecoration: 'none',
-                    fontSize: '12px'
-                }}>
-                    TOPへ戻る
-                </Link>
-            </header>
+            <Header title="抽選情報" backLinkText="TOPへ戻る" />
+
 
             <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px' }}>{product.name}</div>
 

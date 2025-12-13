@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Header from '../_components/Header';
 
 export default function MasterPage() {
     const menuItems = [
@@ -10,24 +11,9 @@ export default function MasterPage() {
     ];
 
     return (
-        <main style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333' }}>
-            {/* ヘッダー */}
-            <header style={{
-                backgroundColor: '#1e90ff',
-                color: '#fff',
-                padding: '12px 16px',
-                borderRadius: '0 0 10px 10px',
-                marginBottom: '24px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                maxWidth: '480px',
-                margin: '0 auto 24px auto',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}>
-                <h1 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>マスターメニュー</h1>
-                <Link href="/" style={{ fontSize: '14px', color: '#fff', textDecoration: 'none', fontWeight: 'bold' }}>TOPへ</Link>
-            </header>
+        <main style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', paddingTop: '80px', fontFamily: 'system-ui, -apple-system, sans-serif', color: '#333' }}>
+            <Header title="マスターメニュー" backLinkText="TOPへ" />
+
 
             <div style={{ maxWidth: '480px', margin: '0 auto', padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {menuItems.map((item) => (

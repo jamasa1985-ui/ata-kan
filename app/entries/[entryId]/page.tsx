@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Header from '../../_components/Header';
 import { Entry, Member } from '../../data';
 
 type StatusOption = {
@@ -21,6 +22,21 @@ export default function EditEntryPage({ params }: PageProps) {
     const searchParams = useSearchParams();
     const productId = searchParams.get('productId');
     const from = searchParams.get('from');
+    const mode = searchParams.get('mode');
+
+    const handleRedirect = () => {
+        if (from === 'schedule') {
+            router.push('/schedule');
+        } else if (from === 'lotteries') {
+            router.push(`/lotteries${mode ? `?mode=${mode}` : ''}`);
+        } else if (from === 'purchases') {
+            router.push(`/purchases${mode ? `?mode=${mode}` : ''}`);
+        } else if (productId) {
+            router.push(`/products/${productId}`);
+        } else {
+            router.back();
+        }
+    };
 
     const [entry, setEntry] = useState<Entry | null>(null);
     const [loading, setLoading] = useState(true);
@@ -145,18 +161,7 @@ export default function EditEntryPage({ params }: PageProps) {
 
             if (res.ok) {
                 alert('更新しました');
-                console.log('from parameter:', from);
-                console.log('productId parameter:', productId);
-                if (from === 'schedule') {
-                    console.log('Redirecting to schedule');
-                    router.push('/schedule');
-                } else if (productId) {
-                    console.log('Redirecting to product page');
-                    router.push(`/products/${productId}`);
-                } else {
-                    console.log('Going back');
-                    router.back();
-                }
+                handleRedirect();
             } else {
                 alert('更新に失敗しました');
             }
@@ -176,13 +181,7 @@ export default function EditEntryPage({ params }: PageProps) {
 
             if (res.ok) {
                 alert('削除しました');
-                if (from === 'schedule') {
-                    router.push('/schedule');
-                } else if (productId) {
-                    router.push(`/products/${productId}`);
-                } else {
-                    router.back();
-                }
+                handleRedirect();
             } else {
                 alert('削除に失敗しました');
             }
@@ -193,13 +192,7 @@ export default function EditEntryPage({ params }: PageProps) {
     };
 
     const handleCancel = () => {
-        if (from === 'schedule') {
-            router.push('/schedule');
-        } else if (productId) {
-            router.push(`/products/${productId}`);
-        } else {
-            router.back();
-        }
+        handleRedirect();
     };
 
     // Helper for default time (current hour)
@@ -285,17 +278,19 @@ export default function EditEntryPage({ params }: PageProps) {
     if (!entry) return <div style={{ padding: 16 }}>データが見つかりません</div>;
 
     return (
-        <main style={{ paddingBottom: 80, fontFamily: 'system-ui, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh', color: '#333' }}>
+        <main style={{ padding: '80px 0 80px 0', fontFamily: 'system-ui, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh', color: '#333' }}>
             {/* Header */}
-            <header style={{
-                backgroundColor: '#1e90ff', color: '#fff', padding: '10px 14px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                position: 'sticky', top: 0, zIndex: 100
-            }}>
-                <button onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333' }}>戻る</button>
-                <div style={{ fontWeight: 'bold', fontSize: 18 }}>抽選情報修正</div>
-                <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
-            </header>
+            <Header
+                title="抽選情報修正"
+                maxWidth={480}
+                backgroundColor="#1e90ff"
+                leftContent={
+                    <button onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333', fontSize: 12 }}>戻る</button>
+                }
+                rightContent={
+                    <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
+                }
+            />
 
             <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', backgroundColor: '#fff', minHeight: 'calc(100vh - 50px)' }}>
 

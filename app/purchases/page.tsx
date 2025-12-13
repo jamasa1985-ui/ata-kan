@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Header from '../_components/Header';
 import { useEffect, useMemo, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Entry as DataEntry, Product, Member } from '../data';
@@ -34,6 +35,7 @@ type PurchaseItem = {
     shortName: string;
     quantity: number;
     amount: number;
+    price?: number;
 };
 
 type MemberWithItems = Member & {
@@ -148,22 +150,34 @@ function PurchasesContent() {
 
                 // Fetch purchase items for all members
                 const itemsMap: Record<string, Record<string, PurchaseItem[]>> = {};
-                for (const entry of filtered) {
-                    if (entry.purchaseMembers && entry.purchaseMembers.length > 0) {
-                        itemsMap[entry.id] = {};
-                        for (const member of entry.purchaseMembers) {
-                            try {
-                                const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
-                                if (itemsRes.ok) {
-                                    const itemsData = await itemsRes.json();
-                                    itemsMap[entry.id][member.id] = itemsData.items || [];
-                                }
-                            } catch (error) {
-                                console.error(`Error fetching items for member ${member.id}:`, error);
-                            }
-                        }
+
+                // Initialize map for all entries first
+                filtered.forEach(e => { itemsMap[e.id] = {}; });
+
+                const fetchPromises = filtered.flatMap(entry => {
+                    if (!entry.purchaseMembers || !Array.isArray(entry.purchaseMembers) || entry.purchaseMembers.length === 0) {
+                        console.warn(`Entry ${entry.id} has no valid purchaseMembers`, entry.purchaseMembers);
+                        return [];
                     }
-                }
+
+                    return entry.purchaseMembers.map(async (member) => {
+                        try {
+                            const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+                            if (itemsRes.ok) {
+                                const itemsData = await itemsRes.json();
+                                if (itemsData.items && itemsData.items.length > 0) {
+                                    if (!itemsMap[entry.id]) itemsMap[entry.id] = {}; // Should be init already but safety
+                                    itemsMap[entry.id][member.id] = itemsData.items;
+                                }
+                            }
+                        } catch (error) {
+                            console.error(`Error fetching items for member ${member.id}:`, error);
+                        }
+                    });
+                });
+
+                await Promise.all(fetchPromises);
+
                 setMemberItems(itemsMap);
             } catch (error) {
                 console.error('応募データの取得に失敗しました:', error);
@@ -233,11 +247,27 @@ function PurchasesContent() {
 
 
 
+    const totalAmount = useMemo(() => {
+        let sum = 0;
+        filteredEntries.forEach(entry => {
+            const entryItems = memberItems[entry.id];
+            if (entryItems) {
+                Object.values(entryItems).forEach(items => {
+                    items.forEach(item => {
+                        const val = item.amount || (item.quantity * (item.price || 0));
+                        sum += val || 0;
+                    });
+                });
+            }
+        });
+        return sum;
+    }, [filteredEntries, memberItems]);
+
     return (
         <main
             style={{
                 minHeight: '100vh',
-                padding: '12px 12px 200px 12px',
+                padding: '80px 12px 200px 12px', // Top padding for fixed header
                 fontFamily: 'system-ui, sans-serif',
                 backgroundColor: '#f5f5f5',
                 color: '#333',
@@ -246,32 +276,24 @@ function PurchasesContent() {
                 position: 'relative',
             }}
         >
-            <header
-                style={{
-                    marginBottom: '10px',
-                    padding: '10px 14px',
-                    backgroundColor: '#1e90ff',
-                    color: '#fff',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                }}
-            >
-                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                    {mode === 'management' ? '購入管理' : '購入一覧'}
-                </div>
-                <Link href="/" style={{
-                    backgroundColor: '#fff',
-                    color: '#333',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    textDecoration: 'none',
-                    fontSize: '12px'
-                }}>
-                    TOPへ戻る
-                </Link>
-            </header>
+            <Header
+                title={mode === 'management' ? '購入管理' : '購入一覧'}
+                maxWidth={480}
+                backgroundColor="#1e90ff"
+                hasBackLink={false}
+                rightContent={
+                    <Link href="/" style={{
+                        backgroundColor: '#fff',
+                        color: '#333',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        textDecoration: 'none',
+                        fontSize: '12px'
+                    }}>
+                        TOPへ戻る
+                    </Link>
+                }
+            />
 
             {/* Product Filter */}
             <section
@@ -307,7 +329,12 @@ function PurchasesContent() {
                     </select>
                 </div>
 
-                <div style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>({filteredEntries.length}件)</div>
+                <div style={{ fontSize: '14px', color: '#666', marginTop: '8px', display: 'flex', alignItems: 'center' }}>
+                    <span>({filteredEntries.length}件)</span>
+                    <span style={{ marginLeft: '16px', fontWeight: 'bold', color: '#333' }}>
+                        合計: ¥{totalAmount.toLocaleString()}
+                    </span>
+                </div>
             </section>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '80px' }}>
@@ -494,7 +521,7 @@ function PurchasesContent() {
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <Link href={`/entries/${entry.id}?productId=${entry.productId}`}>
+                                        <Link href={`/entries/${entry.id}?productId=${entry.productId}&from=purchases&mode=${mode || ''}`}>
                                             <button style={{ backgroundColor: '#007bff', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
                                                 編集
                                             </button>

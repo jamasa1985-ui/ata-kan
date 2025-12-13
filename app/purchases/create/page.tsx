@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Header from '../../_components/Header';
 import { Member } from '../../data';
 
 type StatusOption = {
@@ -263,17 +264,19 @@ function CreatePurchaseContent() {
     };
 
     return (
-        <main style={{ paddingBottom: 80, fontFamily: 'system-ui, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh', color: '#333' }}>
+        <main style={{ padding: '80px 0 80px 0', fontFamily: 'system-ui, sans-serif', backgroundColor: '#f5f5f5', minHeight: '100vh', color: '#333' }}>
             {/* Header */}
-            <header style={{
-                backgroundColor: '#1e90ff', color: '#fff', padding: '10px 14px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                position: 'sticky', top: 0, zIndex: 100
-            }}>
-                <button onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333' }}>戻る</button>
-                <div style={{ fontWeight: 'bold', fontSize: 18 }}>購入登録</div>
-                <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
-            </header>
+            <Header
+                title="購入登録"
+                maxWidth={480}
+                backgroundColor="#1e90ff"
+                leftContent={
+                    <button onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333', fontSize: 12 }}>戻る</button>
+                }
+                rightContent={
+                    <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
+                }
+            />
 
             <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', backgroundColor: '#fff', minHeight: 'calc(100vh - 50px)' }}>
 

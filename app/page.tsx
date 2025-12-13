@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Header from './_components/Header';
 import { useEffect, useState } from 'react';
 
 type Product = {
@@ -82,29 +83,10 @@ export default function Home() {
       }}
     >
       {/* ヘッダー (固定) */}
-      <header
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '100%',
-          maxWidth: '480px',
-          padding: '12px 16px',
-          backgroundColor: '#1e90ff',
-          color: '#fff',
-          borderRadius: '0 0 10px 10px',
-          zIndex: 100,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        }}
-      >
-        <div style={{ fontSize: '18px', fontWeight: 'bold', lineHeight: 1.3 }}>
-          応募管理アプリ
-        </div>
-      </header>
+      <Header
+        title="応募管理アプリ"
+        hasBackLink={false}
+      />
 
       {/* メッセージエリア */}
       <section

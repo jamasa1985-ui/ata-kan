@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Header from '../../../_components/Header';
 import { use, useEffect, useMemo, useState } from 'react';
 import { Entry, Product } from '../../../data';
 
@@ -218,7 +219,7 @@ export default function ProductResultsPage({ params }: PageProps) {
         <main
             style={{
                 minHeight: '100vh',
-                padding: '12px 12px 80px 12px', // フッター分空ける
+                padding: '80px 12px 80px 12px', // Top padding for fixed header
                 fontFamily: 'system-ui, sans-serif',
                 backgroundColor: '#f5f5f5',
                 color: '#333',
@@ -227,33 +228,25 @@ export default function ProductResultsPage({ params }: PageProps) {
                 position: 'relative',
             }}
         >
-            <header
-                style={{
-                    marginBottom: '10px',
-                    padding: '10px 14px',
-                    backgroundColor: '#ffc107', // Use Yellow/Orange for Result Page to distinguish
-                    color: '#000',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                }}
-            >
-                <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                    当落管理
-                </div>
-                <Link href="/" style={{
-                    backgroundColor: '#fff',
-                    color: '#333',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    textDecoration: 'none',
-                    fontSize: '12px',
-                    border: '1px solid #ccc'
-                }}>
-                    TOPへ戻る
-                </Link>
-            </header>
+            <Header
+                title="当落管理"
+                maxWidth={480}
+                backgroundColor="#ffc107"
+                color="#000"
+                rightContent={
+                    <Link href="/" style={{
+                        backgroundColor: '#fff',
+                        color: '#333',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        textDecoration: 'none',
+                        fontSize: '12px',
+                        border: '1px solid #ccc'
+                    }}>
+                        TOPへ戻る
+                    </Link>
+                }
+            />
 
             <div style={{ fontWeight: 'bold', marginBottom: '8px', fontSize: '16px' }}>{product.name}</div>
 

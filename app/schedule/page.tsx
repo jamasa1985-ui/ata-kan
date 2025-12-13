@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Header from '../_components/Header';
 import { useEffect, useState } from 'react';
 
 type ScheduleItem = {
@@ -77,29 +78,21 @@ export default function SchedulePage() {
     return (
         <main style={{
             minHeight: '100vh',
+            // So Main needs paddingTop 56px.
+            // Then Filter `top` should be 56px.
+            paddingTop: '56px',
             paddingBottom: '80px',
             fontFamily: 'system-ui, sans-serif',
             backgroundColor: '#f8f9fa',
             color: '#333'
         }}>
             {/* ヘッダー */}
-            <header style={{
-                position: 'sticky',
-                top: 0,
-                zIndex: 1040,
-                backgroundColor: '#1e90ff',
-                borderBottom: '8px solid #f8f9fa',
-                padding: '10px 14px'
-            }}>
-                <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    maxWidth: 480,
-                    margin: '0 auto'
-                }}>
-                    <div style={{ width: '100px' }}></div>
-                    <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff' }}>スケジュール</span>
+            <Header
+                title="スケジュール"
+                maxWidth={480}
+                backgroundColor="#1e90ff"
+                hasBackLink={false}
+                rightContent={
                     <Link href="/" style={{
                         backgroundColor: '#fff',
                         color: '#333',
@@ -110,13 +103,13 @@ export default function SchedulePage() {
                     }}>
                         TOPへ戻る
                     </Link>
-                </div>
-            </header>
+                }
+            />
 
             {/* フィルター */}
             <div style={{
                 position: 'sticky',
-                top: '50px',
+                top: '56px', // Below fixed header
                 zIndex: 1030,
                 backgroundColor: '#fff',
                 borderBottom: '1px solid #ddd',
