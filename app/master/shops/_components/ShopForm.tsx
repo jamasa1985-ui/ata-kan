@@ -119,33 +119,6 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                 <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px' }}>
                     <h3 style={{ borderBottom: '2px solid #eee', paddingBottom: '8px', marginBottom: '16px', fontSize: '16px', fontWeight: 'bold', color: '#1e90ff' }}>期間・時間設定（日数指定）</h3>
 
-                    {/* 購入期間 */}
-                    <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #eee', borderRadius: '4px' }}>
-                        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1e90ff' }}>購入期間</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <div style={{ flex: 1, minWidth: '140px' }}>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始日 (相対日数)</label>
-                                    <input type="number" value={formData.purchaseStartDate ?? ''} onChange={(e) => setFormData({ ...formData, purchaseStartDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
-                                </div>
-                                <div style={{ flex: 1, minWidth: '140px' }}>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始時間</label>
-                                    <input type="time" value={formData.purchaseStartTime || ''} onChange={(e) => setFormData({ ...formData, purchaseStartTime: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <div style={{ flex: 1, minWidth: '140px' }}>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了日 (相対日数)</label>
-                                    <input type="number" value={formData.purchaseEndDate ?? ''} onChange={(e) => setFormData({ ...formData, purchaseEndDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
-                                </div>
-                                <div style={{ flex: 1, minWidth: '140px' }}>
-                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了時間</label>
-                                    <input type="time" value={formData.purchaseEndTime || ''} onChange={(e) => setFormData({ ...formData, purchaseEndTime: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* 応募期間 */}
                     <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #eee', borderRadius: '4px' }}>
                         <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#28a745' }}>応募期間</div>
@@ -174,7 +147,7 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                     </div>
 
                     {/* 結果発表 */}
-                    <div style={{ padding: '12px', border: '1px solid #eee', borderRadius: '4px' }}>
+                    <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #eee', borderRadius: '4px' }}>
                         <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#ffc107' }}>結果発表</div>
                         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: '140px' }}>
@@ -187,16 +160,53 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                             </div>
                         </div>
                     </div>
+
+                    {/* 購入期間 */}
+                    <div style={{ marginBottom: '16px', padding: '12px', border: '1px solid #eee', borderRadius: '4px' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '8px', color: '#1e90ff' }}>購入期間</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: '140px' }}>
+                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始日 (相対日数)</label>
+                                    <input type="number" value={formData.purchaseStartDate ?? ''} onChange={(e) => setFormData({ ...formData, purchaseStartDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                </div>
+                                <div style={{ flex: 1, minWidth: '140px' }}>
+                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始時間</label>
+                                    <input type="time" value={formData.purchaseStartTime || ''} onChange={(e) => setFormData({ ...formData, purchaseStartTime: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <div style={{ flex: 1, minWidth: '140px' }}>
+                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了日 (相対日数)</label>
+                                    <input type="number" value={formData.purchaseEndDate ?? ''} onChange={(e) => setFormData({ ...formData, purchaseEndDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                </div>
+                                <div style={{ flex: 1, minWidth: '140px' }}>
+                                    <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了時間</label>
+                                    <input type="time" value={formData.purchaseEndTime || ''} onChange={(e) => setFormData({ ...formData, purchaseEndTime: e.target.value })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px', paddingBottom: '40px' }}>
-                    <Link href="/master/shops">
-                        <button type="button" style={{ padding: '12px 24px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', color: '#333' }}>キャンセル</button>
-                    </Link>
-                    {isEdit && onDelete && (
-                        <button type="button" onClick={handleDelete} disabled={loading} style={{ padding: '12px 24px', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>削除</button>
-                    )}
-                    <button type="submit" disabled={loading} style={{ padding: '12px 48px', backgroundColor: '#1e90ff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? '処理中...' : (isEdit ? '更新する' : '登録する')}</button>
+                {/* Footer Buttons (Fixed) */}
+                <div style={{
+                    position: 'fixed', bottom: 0, left: 0, right: 0,
+                    backgroundColor: '#1e90ff', padding: '12px',
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10,
+                    boxShadow: '0 -2px 4px rgba(0,0,0,0.1)'
+                }}>
+                    <div style={{ maxWidth: '600px', width: '100%', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <Link href="/master/shops">
+                                <button type="button" style={{ padding: '8px 16px', backgroundColor: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', color: '#333', fontWeight: 'bold' }}>キャンセル</button>
+                            </Link>
+                            {isEdit && onDelete && (
+                                <button type="button" onClick={handleDelete} disabled={loading} style={{ padding: '8px 16px', backgroundColor: '#fff', color: '#dc3545', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>削除</button>
+                            )}
+                        </div>
+                        <button type="submit" disabled={loading} style={{ padding: '8px 24px', backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? '処理中...' : (isEdit ? '更新' : '登録')}</button>
+                    </div>
                 </div>
             </div>
         </form>

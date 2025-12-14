@@ -61,14 +61,19 @@ export async function PUT(
         const currentPurchaseDate = entryDoc.data()?.purchaseDate;
 
         // Update Entry Status and purchaseDate
-        if (hasPurchasedMember && !currentPurchaseDate) {
-            batch.update(entryRef, {
-                status: newStatus,
-                purchaseDate: new Date().toISOString()
-            });
-        } else {
-            batch.update(entryRef, { status: newStatus });
+        const updateData: any = {
+            status: newStatus,
+            updatedAt: new Date().toISOString()
+        };
+
+        if (hasPurchasedMember) {
+            // Only set purchaseDate if not already set (keep initial purchase date)
+            if (!currentPurchaseDate) {
+                updateData.purchaseDate = new Date().toISOString();
+            }
         }
+
+        batch.update(entryRef, updateData);
 
         await batch.commit();
 

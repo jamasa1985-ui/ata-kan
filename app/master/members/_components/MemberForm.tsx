@@ -104,14 +104,24 @@ export default function MemberForm({ initialData, isEdit, memberId, onSubmit, on
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px', paddingBottom: '40px' }}>
-                <Link href="/master/members">
-                    <button type="button" style={{ padding: '12px 24px', backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer', color: '#333' }}>キャンセル</button>
-                </Link>
-                {isEdit && onDelete && (
-                    <button type="button" onClick={handleDelete} disabled={loading} style={{ padding: '12px 24px', backgroundColor: '#dc3545', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>削除</button>
-                )}
-                <button type="submit" disabled={loading} style={{ padding: '12px 48px', backgroundColor: '#1e90ff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? '処理中...' : (isEdit ? '更新する' : '登録する')}</button>
+            {/* Footer Buttons (Fixed) */}
+            <div style={{
+                position: 'fixed', bottom: 0, left: 0, right: 0,
+                backgroundColor: '#1e90ff', padding: '12px',
+                display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10,
+                boxShadow: '0 -2px 4px rgba(0,0,0,0.1)'
+            }}>
+                <div style={{ maxWidth: '600px', width: '100%', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        <Link href="/master/members">
+                            <button type="button" style={{ padding: '8px 16px', backgroundColor: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', color: '#333', fontWeight: 'bold' }}>キャンセル</button>
+                        </Link>
+                        {isEdit && onDelete && (
+                            <button type="button" onClick={handleDelete} disabled={loading} style={{ padding: '8px 16px', backgroundColor: '#fff', color: '#dc3545', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>削除</button>
+                        )}
+                    </div>
+                    <button type="submit" disabled={loading} style={{ padding: '8px 24px', backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? '処理中...' : (isEdit ? '更新' : '登録')}</button>
+                </div>
             </div>
         </form>
     );

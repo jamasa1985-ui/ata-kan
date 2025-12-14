@@ -562,23 +562,25 @@ function CreateEntryContent() {
             {/* Footer Buttons */}
             <div style={{
                 position: 'fixed', bottom: 0, left: 0, right: 0,
-                backgroundColor: '#fff', borderTop: '1px solid #ccc', padding: 12,
+                backgroundColor: '#1e90ff', borderTop: 'none', padding: 12,
                 display: 'flex', justifyContent: 'flex-end', alignItems: 'center', zIndex: 10,
-                gap: 8
+                gap: 8, boxShadow: '0 -2px 4px rgba(0,0,0,0.1)'
             }}>
-                <button
-                    onClick={handleRegister}
-                    disabled={loading}
-                    style={{ backgroundColor: loading ? '#ccc' : '#1e90ff', color: '#fff', border: 'none', borderRadius: 4, padding: '8px 24px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}
-                >
-                    {loading ? '登録中...' : '登録'}
-                </button>
-                <button
-                    onClick={handleCancel}
-                    style={{ backgroundColor: '#fff', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                    キャンセル
-                </button>
+                <div style={{ maxWidth: '480px', width: '100%', margin: '0 auto', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <button
+                        onClick={handleCancel}
+                        style={{ backgroundColor: '#fff', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                        キャンセル
+                    </button>
+                    <button
+                        onClick={handleRegister}
+                        disabled={loading}
+                        style={{ backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: 4, padding: '8px 24px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}
+                    >
+                        {loading ? '登録中...' : '登録'}
+                    </button>
+                </div>
             </div>
         </main >
     );

@@ -533,28 +533,31 @@ export default function EditEntryPage({ params }: PageProps) {
             {/* Footer Buttons */}
             <div style={{
                 position: 'fixed', bottom: 0, left: 0, right: 0,
-                backgroundColor: '#fff', borderTop: '1px solid #ccc', padding: 12,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10
+                backgroundColor: '#1e90ff', padding: 12,
+                display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 10,
+                boxShadow: '0 -2px 4px rgba(0,0,0,0.1)'
             }}>
-                <button
-                    onClick={handleDelete}
-                    style={{ backgroundColor: '#fff', color: '#f00', border: '1px solid #f00', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
-                    削除
-                </button>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ width: '100%', maxWidth: '480px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button
-                        onClick={handleUpdate}
-                        style={{ backgroundColor: '#fff', color: '#1e90ff', border: '1px solid #1e90ff', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                        onClick={handleDelete}
+                        style={{ backgroundColor: '#fff', color: '#dc3545', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
-                        更新
+                        削除
                     </button>
-                    <button
-                        onClick={handleCancel}
-                        style={{ backgroundColor: '#fff', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
-                    >
-                        キャンセル
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                            onClick={handleCancel}
+                            style={{ backgroundColor: '#fff', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            onClick={handleUpdate}
+                            style={{ backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: 4, padding: '8px 24px', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                            更新
+                        </button>
+                    </div>
                 </div>
             </div>
 

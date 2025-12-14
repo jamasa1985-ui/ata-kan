@@ -197,10 +197,9 @@ export default function ProductPurchasesPage({ params }: PageProps) {
             }
 
             // 2. Sort by Date (purchaseEnd for 当選, purchaseDate for 購入済)
-            const statusNameA = getStatusName(a.status);
-            const statusNameB = getStatusName(b.status);
-            const dateA = statusNameA === '当選' ? a.purchaseEnd : (a as any).purchaseDate;
-            const dateB = statusNameB === '当選' ? b.purchaseEnd : (b as any).purchaseDate;
+            // If purchaseDate exists, use it mainly for sorting effectively as "acted upon"
+            const dateA = (a as any).purchaseDate || a.purchaseEnd;
+            const dateB = (b as any).purchaseDate || b.purchaseEnd;
 
             if (!dateA && !dateB) return 0;
             if (!dateA) return 1;
@@ -361,8 +360,22 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                         width: '110px',
                                         justifyContent: 'flex-end'
                                     }}>
-                                        <span>{statusName === '当選' ? '購〆日' : '購入日'}</span>
-                                        <span>{statusName === '当選' ? (entry.purchaseEnd ? formatShortDate(entry.purchaseEnd) : '') : (entry.purchaseDate ? formatShortDate(entry.purchaseDate) : '')}</span>
+                                        {/* Show Purchase Date if available, otherwise Purchase Deadline for Winners */}
+                                        {(entry as any).purchaseDate ? (
+                                            <>
+                                                <span>購入日</span>
+                                                <span>{formatShortDate((entry as any).purchaseDate)}</span>
+                                            </>
+                                        ) : (
+                                            statusName === '当選' ? (
+                                                <>
+                                                    <span>購〆日</span>
+                                                    <span>{entry.purchaseEnd ? formatShortDate(entry.purchaseEnd) : ''}</span>
+                                                </>
+                                            ) : (
+                                                <span></span>
+                                            )
+                                        )}
                                     </span>
                                     <span style={{ marginLeft: '4px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>
                                         ^

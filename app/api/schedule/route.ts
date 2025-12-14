@@ -108,8 +108,8 @@ export async function GET() {
                 addItem(entry.resultDate, '当落');
             }
             if (status === 30) {
-                addItem(entry.purchaseStart, '購入');
-                addItem(entry.purchaseEnd, '購〆');
+                if (entry.purchaseStart) addItem(entry.purchaseStart, '購入');
+                if (entry.purchaseEnd) addItem(entry.purchaseEnd, '購〆');
             }
         });
 
