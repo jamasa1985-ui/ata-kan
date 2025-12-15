@@ -87,7 +87,7 @@ export default function MemberForm({ initialData, isEdit, memberId, onSubmit, on
                         </div>
                         <div>
                             <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>表示順</label>
-                            <input type="number" value={formData.order} onChange={(e) => setFormData({ ...formData, order: Number(e.target.value) })} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '14px', color: '#000' }} />
+                            <input type="number" value={formData.order === 0 ? '' : formData.order} onChange={(e) => setFormData({ ...formData, order: e.target.value === '' ? 0 : Number(e.target.value) })} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '14px', color: '#000' }} placeholder="0" />
                         </div>
                     </div>
 

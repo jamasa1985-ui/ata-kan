@@ -45,9 +45,8 @@ type MemberWithItems = Member & {
 function PurchasesContent() {
     const searchParams = useSearchParams();
     const mode = searchParams.get('mode');
-    const [products, setProducts] = useState<Product[]>([]);
+    const [entries, setEntries] = useState<Entry[]>([]);
     const [selectedProductId, setSelectedProductId] = useState<string>('all');
-    const [productEntries, setProductEntries] = useState<Entry[]>([]);
     const [memberItems, setMemberItems] = useState<Record<string, Record<string, PurchaseItem[]>>>({});
 
     const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
@@ -64,20 +63,8 @@ function PurchasesContent() {
     const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
     const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
-    // Fetch Products and Options
+    // Fetch Options
     useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const response = await fetch('/api/products');
-                if (response.ok) {
-                    const data = await response.json();
-                    setProducts(data);
-                }
-            } catch (error) {
-                console.error('商品情報の取得エラー:', error);
-            }
-        };
-
         const fetchOptions = async () => {
             try {
                 const response = await fetch('/api/options');
@@ -101,12 +88,10 @@ function PurchasesContent() {
                 console.error('オプション情報の取得エラー:', error);
             }
         };
-
-        fetchProducts();
         fetchOptions();
     }, []);
 
-    // Fetch Entries and Purchase Items
+    // Fetch All Entries
     useEffect(() => {
         const fetchEntries = async () => {
             try {
@@ -115,77 +100,125 @@ function PurchasesContent() {
                     throw new Error('応募データの取得に失敗しました');
                 }
                 const data: Entry[] = await response.json();
-
-                // Filter Logic
-                let filtered: Entry[] = [];
-                if (mode === 'management') {
-                    // 購入管理: statusが30,40のデータかつpurchaseEndが14日経過していないもの
-                    filtered = data.filter(e => {
-                        const s = e.status;
-                        if (s !== 30 && s !== 40) return false;
-
-                        // purchaseEnd check
-                        // "14日経過していない" meaning 14 days have NOT passed since purchaseEnd?
-                        // Or purchaseEnd is within the last 14 days?
-                        // Usually: today <= purchaseEnd + 14 days.
-                        // Or simply: diff(today, purchaseEnd) <= 14.
-                        if (!e.purchaseEnd) return true; // Keep if no date? Or drop? Usually keep if active.
-
-                        const purchaseEnd = new Date(e.purchaseEnd);
-                        const now = new Date();
-                        const diffTime = now.getTime() - purchaseEnd.getTime();
-                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-                        // If diffDays > 14, it means more than 14 days have passed since deadline.
-                        if (diffDays > 14) return false;
-
-                        return true;
-                    });
-                } else {
-                    // Default: ステータス40（購入済）のみ表示
-                    filtered = data.filter(e => e.status.toString() === '40');
-                }
-
-                setProductEntries(filtered);
-
-                // Fetch purchase items for all members
-                const itemsMap: Record<string, Record<string, PurchaseItem[]>> = {};
-
-                // Initialize map for all entries first
-                filtered.forEach(e => { itemsMap[e.id] = {}; });
-
-                const fetchPromises = filtered.flatMap(entry => {
-                    if (!entry.purchaseMembers || !Array.isArray(entry.purchaseMembers) || entry.purchaseMembers.length === 0) {
-                        console.warn(`Entry ${entry.id} has no valid purchaseMembers`, entry.purchaseMembers);
-                        return [];
-                    }
-
-                    return entry.purchaseMembers.map(async (member) => {
-                        try {
-                            const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
-                            if (itemsRes.ok) {
-                                const itemsData = await itemsRes.json();
-                                if (itemsData.items && itemsData.items.length > 0) {
-                                    if (!itemsMap[entry.id]) itemsMap[entry.id] = {}; // Should be init already but safety
-                                    itemsMap[entry.id][member.id] = itemsData.items;
-                                }
-                            }
-                        } catch (error) {
-                            console.error(`Error fetching items for member ${member.id}:`, error);
-                        }
-                    });
-                });
-
-                await Promise.all(fetchPromises);
-
-                setMemberItems(itemsMap);
+                setEntries(data);
             } catch (error) {
                 console.error('応募データの取得に失敗しました:', error);
             }
         };
 
         fetchEntries();
-    }, [mode]);
+    }, []);
+
+    // Base Filter (Mode & Date) - Used for Dropdown Options
+    const baseFilteredEntries = useMemo(() => {
+        return entries.filter(e => {
+            if (mode === 'management') {
+                // Status check: 30, 40, 99
+                if (![30, 40, 99].includes(e.status)) return false;
+
+                const now = new Date();
+
+                // 1. purchaseDate (購入日) がある場合
+                if (e.purchaseDate) {
+                    const purchaseDate = new Date(e.purchaseDate);
+                    const diffTime = now.getTime() - purchaseDate.getTime();
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    // 14日以上経過していたら非表示
+                    if (diffDays > 14) return false;
+                }
+                // 2. purchaseEnd (購入期限) がある場合
+                else if (e.purchaseEnd) {
+                    const purchaseEnd = new Date(e.purchaseEnd);
+                    // 期限切れなら非表示
+                    if (purchaseEnd < now) return false;
+                }
+
+                return true;
+            } else {
+                // Default: ステータス40（購入済）のみ表示
+                return e.status === 40;
+            }
+        });
+    }, [entries, mode]);
+
+    // Get unique products for filter - BASED ON BASE FILTERED ENTRIES
+    const uniqueProducts = useMemo(() => {
+        const productMap = new Map<string, string>();
+        baseFilteredEntries.forEach(e => {
+            if (e.productId && e.productName) {
+                productMap.set(e.productId, e.productName);
+            }
+        });
+        return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }));
+    }, [baseFilteredEntries]);
+
+    // Final Filtered Entries (Apply User Filters)
+    const filteredEntries = useMemo(() => {
+        let filtered = baseFilteredEntries;
+
+        // Filter by product
+        if (selectedProductId !== 'all') {
+            filtered = filtered.filter(e => e.productId === selectedProductId);
+        }
+
+        // Sort by purchaseDate
+        return filtered.sort((a, b) => {
+            const dateA = (a as any).purchaseDate;
+            const dateB = (b as any).purchaseDate;
+
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return new Date(dateB).getTime() - new Date(dateA).getTime(); // 新しい順
+        });
+    }, [baseFilteredEntries, selectedProductId]);
+
+    // Fetch Purchase Items for Base Filtered Entries
+    useEffect(() => {
+        const fetchItems = async () => {
+            const itemsMap: Record<string, Record<string, PurchaseItem[]>> = { ...memberItems };
+            let hasNewData = false;
+
+            const fetchPromises = baseFilteredEntries.flatMap(entry => {
+                // If we already have data for this entry, skip (or assume up to date)
+                // To be safe, we can check if the entry key exists in memberItems.
+                // However, detailed member checks are better.
+                // For simplicity, let's fetch if 'entry.id' key is missing in itemsMap
+                if (itemsMap[entry.id]) return [];
+
+                if (!entry.purchaseMembers || !Array.isArray(entry.purchaseMembers) || entry.purchaseMembers.length === 0) {
+                    return [];
+                }
+
+                return entry.purchaseMembers.map(async (member) => {
+                    try {
+                        const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+                        if (itemsRes.ok) {
+                            const itemsData = await itemsRes.json();
+                            if (itemsData.items && itemsData.items.length > 0) {
+                                if (!itemsMap[entry.id]) itemsMap[entry.id] = {};
+                                itemsMap[entry.id][member.id] = itemsData.items;
+                                hasNewData = true;
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching items for member ${member.id}:`, error);
+                    }
+                });
+            });
+
+            if (fetchPromises.length > 0) {
+                await Promise.all(fetchPromises);
+                if (hasNewData) {
+                    setMemberItems(itemsMap);
+                }
+            }
+        };
+
+        if (baseFilteredEntries.length > 0) {
+            fetchItems();
+        }
+    }, [baseFilteredEntries]);
 
     const getStatusName = (statusCode: string | number) => {
         return statusMap[statusCode.toString()] || statusCode.toString();
@@ -203,6 +236,42 @@ function PurchasesContent() {
         });
     };
 
+    // Handle opening the items modal
+    const handleOpenItemsModal = async (entry: any, member: any) => {
+        setSelectedEntry(entry);
+        setSelectedMember(member);
+
+        // Load product data for modal
+        try {
+            const productRes = await fetch(`/api/products/${entry.productId}`);
+            if (productRes.ok) {
+                setModalProduct(await productRes.json());
+            }
+        } catch (error) {
+            console.error('Error loading product:', error);
+        }
+
+        // Load existing purchase items
+        try {
+            const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+            if (itemsRes.ok) {
+                const itemsData = await itemsRes.json();
+                const quantities: Record<string, number> = {};
+                itemsData.items.forEach((item: any) => {
+                    quantities[item.code] = item.quantity;
+                });
+                setItemQuantities(quantities);
+            } else {
+                setItemQuantities({});
+            }
+        } catch (error) {
+            console.error('Error loading items:', error);
+            setItemQuantities({});
+        }
+
+        setShowItemsModal(true);
+    };
+
     const formatDate = (date: string | Date | undefined) => {
         if (!date) return '';
         const d = new Date(date);
@@ -217,31 +286,11 @@ function PurchasesContent() {
 
     useEffect(() => {
         if (isDetailMode) {
-            setExpandedIds(new Set(productEntries.map(e => e.id)));
+            setExpandedIds(new Set(filteredEntries.map(e => e.id)));
         } else {
             setExpandedIds(new Set());
         }
-    }, [isDetailMode, productEntries]);
-
-    const filteredEntries = useMemo(() => {
-        let filtered = productEntries;
-
-        // Filter by product
-        if (selectedProductId !== 'all') {
-            filtered = filtered.filter(e => e.productId === selectedProductId);
-        }
-
-        // Sort by purchaseDate
-        return filtered.sort((a, b) => {
-            const dateA = (a as any).purchaseDate;
-            const dateB = (b as any).purchaseDate;
-
-            if (!dateA && !dateB) return 0;
-            if (!dateA) return 1;
-            if (!dateB) return -1;
-            return new Date(dateB).getTime() - new Date(dateA).getTime(); // 新しい順
-        });
-    }, [productEntries, selectedProductId]);
+    }, [isDetailMode, filteredEntries]);
 
 
 
@@ -321,7 +370,7 @@ function PurchasesContent() {
                         }}
                     >
                         <option value="all">すべて</option>
-                        {products.map(product => (
+                        {uniqueProducts.map(product => (
                             <option key={product.id} value={product.id}>
                                 {product.name}
                             </option>
@@ -364,7 +413,7 @@ function PurchasesContent() {
                                     background: '#e6f2ff'
                                 }}
                             >
-                                <div>
+                                <div style={{ flex: 1, minWidth: 0, paddingRight: '8px' }}>
                                     <div style={{ fontSize: '14px', fontWeight: isOpen ? 'bold' : 'normal' }}>
                                         {entry.productName}
                                     </div>
@@ -372,7 +421,7 @@ function PurchasesContent() {
                                         {entry.shopShortName}
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                                     <span style={{ fontSize: '14px' }}>{statusName}</span>
                                     <span style={{
                                         fontSize: '14px',
@@ -410,44 +459,14 @@ function PurchasesContent() {
                                                                 const newStatus = Number(e.target.value);
 
                                                                 if (newStatus === 30 || newStatus === 40) {
-                                                                    setSelectedEntry(entry);
-                                                                    setSelectedMember(member);
-
-                                                                    // Load product data for modal
-                                                                    try {
-                                                                        const productRes = await fetch(`/api/products/${entry.productId}`);
-                                                                        if (productRes.ok) {
-                                                                            setModalProduct(await productRes.json());
-                                                                        }
-                                                                    } catch (error) {
-                                                                        console.error('Error loading product:', error);
-                                                                    }
-
-                                                                    try {
-                                                                        const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
-                                                                        if (itemsRes.ok) {
-                                                                            const itemsData = await itemsRes.json();
-                                                                            const quantities: Record<string, number> = {};
-                                                                            itemsData.items.forEach((item: any) => {
-                                                                                quantities[item.code] = item.quantity;
-                                                                            });
-                                                                            setItemQuantities(quantities);
-                                                                        } else {
-                                                                            setItemQuantities({});
-                                                                        }
-                                                                    } catch (error) {
-                                                                        console.error('Error loading items:', error);
-                                                                        setItemQuantities({});
-                                                                    }
-
-                                                                    setShowItemsModal(true);
+                                                                    await handleOpenItemsModal(entry, member);
                                                                 }
 
                                                                 const updatedMembers = entry.purchaseMembers?.map(m =>
                                                                     m.id === member.id ? { ...m, status: newStatus } : m
                                                                 );
 
-                                                                setProductEntries(prev => prev.map(p =>
+                                                                setEntries(prev => prev.map(p =>
                                                                     p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
                                                                 ));
 
@@ -462,7 +481,7 @@ function PurchasesContent() {
                                                                     }
                                                                     const data = await res.json();
                                                                     if (data.newStatus !== undefined) {
-                                                                        setProductEntries(prev => prev.map(p =>
+                                                                        setEntries(prev => prev.map(p =>
                                                                             p.id === entry.id ? { ...p, status: data.newStatus } : p
                                                                         ));
                                                                     }
@@ -482,6 +501,26 @@ function PurchasesContent() {
                                                                 <option key={opt.code} value={opt.code}>{opt.name}</option>
                                                             ))}
                                                         </select>
+                                                        {(member.status === 30 || member.status === 40) && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleOpenItemsModal(entry, member);
+                                                                }}
+                                                                style={{
+                                                                    marginLeft: '4px',
+                                                                    padding: '2px 6px',
+                                                                    fontSize: '11px',
+                                                                    backgroundColor: '#28a745',
+                                                                    color: '#fff',
+                                                                    border: 'none',
+                                                                    borderRadius: '4px',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                商品
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>
@@ -637,7 +676,7 @@ function PurchasesContent() {
                                                 </div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                     <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, qty - 1) }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>-</button>
-                                                    <input type="number" min="0" value={qty} onChange={(e) => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: '50px', textAlign: 'center', border: '1px solid #ccc', borderRadius: '4px', padding: '4px' }} />
+                                                    <input type="number" min="0" value={qty === 0 ? '' : qty} onChange={(e) => { const val = e.target.value; setItemQuantities(prev => ({ ...prev, [relation.code]: val === '' ? 0 : parseInt(val) })) }} style={{ width: '50px', textAlign: 'center', border: '1px solid #ccc', borderRadius: '4px', padding: '4px' }} placeholder="0" />
                                                     <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: qty + 1 }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>+</button>
                                                 </div>
                                                 <div style={{ width: '80px', textAlign: 'right', fontSize: '14px' }}>¥{subtotal.toLocaleString()}</div>

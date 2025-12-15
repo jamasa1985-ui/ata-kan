@@ -1,0 +1,10 @@
+[2025-12-15T21:39:21.812Z] GET /api/products called
+[2025-12-15T21:39:21.817Z] adminDb is defined
+[2025-12-15T21:39:21.821Z] Fetching snapshot...
+[2025-12-15T21:39:22.234Z] Snapshot fetched. Docs: 42
+[2025-12-15T21:39:22.236Z] Processing complete. Returning 1 products.
+[2025-12-15T21:39:59.178Z] GET /api/products called
+[2025-12-15T21:39:59.179Z] adminDb is defined
+[2025-12-15T21:39:59.179Z] Fetching snapshot...
+[2025-12-15T21:39:59.256Z] Snapshot fetched. Docs: 42
+[2025-12-15T21:39:59.257Z] Processing complete. Returning 1 products.

@@ -13,7 +13,9 @@ export async function GET(request: Request, context: RouteContext) {
         const { productId } = await context.params;
 
         const entriesRef = adminDb.collection('entries');
+        console.log(`Fetching entries for productId: ${productId}`); // DEBUG
         const snapshot = await entriesRef.where('productId', '==', productId).get();
+        console.log(`Found ${snapshot.size} entries`); // DEBUG
 
         const entries = await Promise.all(snapshot.docs.map(async (doc) => {
             const data = doc.data();

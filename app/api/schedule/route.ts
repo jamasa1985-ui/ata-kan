@@ -100,7 +100,7 @@ export async function GET() {
             };
 
             // ステータスに応じてイベントを追加
-            if ([0, 10, 20].includes(status)) {
+            if ([0, 10].includes(status)) {
                 addItem(entry.applyStart, '応募');
                 addItem(entry.applyEnd, '応〆');
             }

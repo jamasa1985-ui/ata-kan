@@ -196,11 +196,11 @@ export default function ProductForm({ initialData, isEdit, productId, onSubmit, 
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                                         <div>
                                             <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>単価</label>
-                                            <input type="number" value={rel.price} onChange={(e) => updateRelation(idx, 'price', Number(e.target.value))} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', color: '#000' }} />
+                                            <input type="number" value={rel.price === 0 ? '' : rel.price} onChange={(e) => updateRelation(idx, 'price', e.target.value === '' ? 0 : Number(e.target.value))} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', color: '#000' }} placeholder="0" />
                                         </div>
                                         <div>
                                             <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>数量</label>
-                                            <input type="number" value={rel.quantity} onChange={(e) => updateRelation(idx, 'quantity', Number(e.target.value))} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', color: '#000' }} />
+                                            <input type="number" value={rel.quantity === 0 ? '' : rel.quantity} onChange={(e) => updateRelation(idx, 'quantity', e.target.value === '' ? 0 : Number(e.target.value))} style={{ width: '100%', padding: '6px', border: '1px solid #ccc', borderRadius: '4px', color: '#000' }} placeholder="0" />
                                         </div>
                                         <div>
                                             <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>金額</label>

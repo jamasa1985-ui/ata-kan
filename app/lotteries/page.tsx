@@ -148,47 +148,66 @@ function LotteriesContent() {
         return `${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getDate().toString().padStart(2, '0')}`;
     };
 
-    // Get unique products for filter
-    const uniqueProducts = useMemo(() => {
-        const products = new Map<string, string>();
-        entries.forEach(e => {
-            if (e.productId && e.productName) {
-                products.set(e.productId, e.productName);
-            }
-        });
-        return Array.from(products.entries()).map(([id, name]) => ({ id, name }));
-    }, [entries]);
-
-    // Filtered Entries
-    const filteredEntries = useMemo(() => {
-        const filtered = entries.filter((e) => {
+    // Base Filter (Mode & Date) - Used for Dropdown Options
+    const baseFilteredEntries = useMemo(() => {
+        return entries.filter((e) => {
             // Mode-based filtering
             if (mode === 'info') {
-                // 抽選情報: entriesのstatusが99以外のものは全て
-                // statusが99のものはresultDateが14日経過していないもの
-                if (e.status === 99) {
-                    if (!e.resultDate) return false;
-                    const resultDate = new Date(e.resultDate);
-                    const now = new Date();
-                    const diffTime = now.getTime() - resultDate.getTime();
+                const now = new Date();
+
+                // 1. purchaseDate (購入日) がある場合 (購入済)
+                if (e.purchaseDate) {
+                    const purchaseDate = new Date(e.purchaseDate);
+                    const diffTime = now.getTime() - purchaseDate.getTime();
                     const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                    // resultDateが14日以内のもの (未来の日付も含むならdiffDays < 14)
-                    // "14日経過していない" = diffDays <= 14
+                    // 14日以上経過していたら非表示
                     if (diffDays > 14) return false;
                 }
+                // 2. purchaseEnd (購入期限) がある場合
+                else if (e.purchaseEnd) {
+                    const purchaseEnd = new Date(e.purchaseEnd);
+                    // 期限切れなら非表示
+                    if (purchaseEnd < now) return false;
+                }
+                // 3. resultDate (発表日) がある場合
+                else if (e.resultDate) {
+                    const resultDate = new Date(e.resultDate);
+                    const diffTime = now.getTime() - resultDate.getTime();
+                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                    // 14日以上経過していたら非表示
+                    if (diffDays > 14) return false;
+                }
+                // 4. applyEnd (応募締切) がある場合
+                else if (e.applyEnd) {
+                    const applyEnd = new Date(e.applyEnd);
+                    // 締切切れなら非表示 (ステータス問わず)
+                    if (applyEnd < now) return false;
+                }
+                // いずれの日付もない場合は表示
             } else if (mode === 'results') {
                 // 当落管理: entriesのstatusが20,30,99のもの全て
                 const validStatuses = [20, 30, 99];
                 if (!validStatuses.includes(e.status)) return false;
             }
+            return true;
+        });
+    }, [entries, mode]);
 
-            // Normal filters (User manually selecting dropdowns still apply WITHIN the mode)
-            // But usually "mode" implies a preset view.
-            // Let's assume User filters (Product/Shop/Status dropdowns) act as ADDITIONAL filters
-            // on top of the mode-restricted dataset.
+    // Get unique products for filter - BASED ON BASE FILTERED ENTRIES
+    const uniqueProducts = useMemo(() => {
+        const products = new Map<string, string>();
+        baseFilteredEntries.forEach(e => {
+            if (e.productId && e.productName) {
+                products.set(e.productId, e.productName);
+            }
+        });
+        return Array.from(products.entries()).map(([id, name]) => ({ id, name }));
+    }, [baseFilteredEntries]);
 
+    // Final Filtered Entries (Apply User Filters)
+    const filteredEntries = useMemo(() => {
+        const filtered = baseFilteredEntries.filter((e) => {
             // Status filter (Manual)
-
             const sName = getStatusName(e.status);
             if (statusFilter !== 'すべて' && sName !== statusFilter) {
                 return false;
@@ -241,7 +260,7 @@ function LotteriesContent() {
             if (!dateB) return -1;
             return new Date(dateA).getTime() - new Date(dateB).getTime();
         });
-    }, [entries, statusFilter, productFilter, shopFilter, statusMap, statusOptions, mode]);
+    }, [baseFilteredEntries, statusFilter, productFilter, shopFilter, statusMap, statusOptions]);
 
     // Header Info Helper
     const getEntryHeaderInfo = (entry: Entry, statusName: string) => {
@@ -263,6 +282,41 @@ function LotteriesContent() {
         }
 
         return { label, dateVal };
+    };
+
+    const handleOpenItemsModal = async (entry: Entry, member: any) => {
+        setSelectedEntry(entry);
+        setSelectedMember(member);
+
+        // Load product data for modal
+        try {
+            const productRes = await fetch(`/api/products/${entry.productId}`);
+            if (productRes.ok) {
+                setModalProduct(await productRes.json());
+            }
+        } catch (error) {
+            console.error('Error loading product:', error);
+        }
+
+        // Load existing purchase items
+        try {
+            const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+            if (itemsRes.ok) {
+                const itemsData = await itemsRes.json();
+                const quantities: Record<string, number> = {};
+                itemsData.items.forEach((item: any) => {
+                    quantities[item.code] = item.quantity;
+                });
+                setItemQuantities(quantities);
+            } else {
+                setItemQuantities({});
+            }
+        } catch (error) {
+            console.error('Error loading items:', error);
+            setItemQuantities({});
+        }
+
+        setShowItemsModal(true);
     };
 
     if (loading) {
@@ -410,7 +464,7 @@ function LotteriesContent() {
                                     backgroundColor: isOpen ? '#fff' : '#e6f2ff',
                                 }}
                             >
-                                <div>
+                                <div style={{ flex: 1, minWidth: 0, paddingRight: '8px' }}>
                                     <div style={{ fontSize: '14px', fontWeight: isOpen ? 'bold' : 'normal' }}>
                                         {entry.shopShortName}
                                     </div>
@@ -418,7 +472,7 @@ function LotteriesContent() {
                                         {entry.productName}
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                                     <span style={{ fontSize: '14px' }}>{statusName}</span>
                                     <span style={{
                                         fontSize: '14px',
@@ -448,24 +502,35 @@ function LotteriesContent() {
                                         <span style={{ color: '#000' }}>{applyMethodName}</span>
                                     </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>応募期間：</div>
-                                        <div style={{ color: '#333' }}>
-                                            {formatDate(entry.applyStart)} ～ {formatDate(entry.applyEnd)}
+                                    {entry.status === 40 ? (
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <div style={{ fontWeight: 'bold', color: '#000' }}>購入日：</div>
+                                            <div style={{ color: '#333' }}>
+                                                {formatDate(entry.purchaseDate)}
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>応募期間：</div>
+                                                <div style={{ color: '#333' }}>
+                                                    {formatDate(entry.applyStart)} ～ {formatDate(entry.applyEnd)}
+                                                </div>
+                                            </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>発表日：</div>
-                                        <div style={{ color: '#333' }}>{formatDate(entry.resultDate)}</div>
-                                    </div>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>発表日：</div>
+                                                <div style={{ color: '#333' }}>{formatDate(entry.resultDate)}</div>
+                                            </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>購入期限：</div>
-                                        <div style={{ color: '#333' }}>
-                                            {formatDate(entry.purchaseStart)} ～ {formatDate(entry.purchaseEnd)}
-                                        </div>
-                                    </div>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>購入期限：</div>
+                                                <div style={{ color: '#333' }}>
+                                                    {formatDate(entry.purchaseStart)} ～ {formatDate(entry.purchaseEnd)}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
 
                                     <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
                                         <div style={{ fontWeight: 'bold', marginRight: '8px', color: '#000' }}>URL：</div>
@@ -491,88 +556,81 @@ function LotteriesContent() {
                                                 {entry.purchaseMembers.map((member) => (
                                                     <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '4px 8px', borderRadius: '4px' }}>
                                                         <span style={{ fontSize: '14px' }}>{member.name}</span>
-                                                        <select
-                                                            value={member.status !== undefined ? member.status : 0}
-                                                            onChange={async (e) => {
-                                                                const newStatus = Number(e.target.value);
-
-                                                                // Show modal if status is Won (30) or Purchased (40)
-                                                                if (newStatus === 30 || newStatus === 40) {
-                                                                    setSelectedEntry(entry);
-                                                                    setSelectedMember(member);
-
-                                                                    // Load product data for modal
+                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                            <select
+                                                                value={member.status !== undefined ? member.status : 0}
+                                                                onChange={async (e) => {
+                                                                    const newStatus = Number(e.target.value);
                                                                     try {
-                                                                        const productRes = await fetch(`/api/products/${entry.productId}`);
-                                                                        if (productRes.ok) {
-                                                                            setModalProduct(await productRes.json());
+                                                                        if (newStatus === 30 || newStatus === 40) {
+                                                                            await handleOpenItemsModal(entry, member);
                                                                         }
                                                                     } catch (error) {
-                                                                        console.error('Error loading product:', error);
+                                                                        console.error('Error in status change:', error);
                                                                     }
 
-                                                                    // Load existing purchase items
+                                                                    // Optimistic Update
+                                                                    const updatedMembers = entry.purchaseMembers?.map(m =>
+                                                                        m.id === member.id ? { ...m, status: newStatus } : m
+                                                                    );
+
+                                                                    setEntries(prev => prev.map(p =>
+                                                                        p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
+                                                                    ));
+
                                                                     try {
-                                                                        const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
-                                                                        if (itemsRes.ok) {
-                                                                            const itemsData = await itemsRes.json();
-                                                                            const quantities: Record<string, number> = {};
-                                                                            itemsData.items.forEach((item: any) => {
-                                                                                quantities[item.code] = item.quantity;
-                                                                            });
-                                                                            setItemQuantities(quantities);
-                                                                        } else {
-                                                                            setItemQuantities({});
+                                                                        const res = await fetch(`/api/entries/${entry.id}/members`, {
+                                                                            method: 'PUT',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ members: updatedMembers }),
+                                                                        });
+                                                                        if (!res.ok) {
+                                                                            throw new Error('Failed to update');
+                                                                        }
+                                                                        const data = await res.json();
+                                                                        if (data.newStatus !== undefined) {
+                                                                            setEntries(prev => prev.map(p =>
+                                                                                p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                            ));
                                                                         }
                                                                     } catch (error) {
-                                                                        console.error('Error loading items:', error);
-                                                                        setItemQuantities({});
+                                                                        alert('ステータス更新に失敗しました');
                                                                     }
-
-                                                                    setShowItemsModal(true);
-                                                                }
-
-                                                                // Optimistic Update
-                                                                const updatedMembers = entry.purchaseMembers?.map(m =>
-                                                                    m.id === member.id ? { ...m, status: newStatus } : m
-                                                                );
-
-                                                                setEntries(prev => prev.map(p =>
-                                                                    p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
-                                                                ));
-
-                                                                try {
-                                                                    const res = await fetch(`/api/entries/${entry.id}/members`, {
-                                                                        method: 'PUT',
-                                                                        headers: { 'Content-Type': 'application/json' },
-                                                                        body: JSON.stringify({ members: updatedMembers }),
-                                                                    });
-                                                                    if (!res.ok) {
-                                                                        throw new Error('Failed to update');
-                                                                    }
-                                                                    const data = await res.json();
-                                                                    if (data.newStatus !== undefined) {
-                                                                        setEntries(prev => prev.map(p =>
-                                                                            p.id === entry.id ? { ...p, status: data.newStatus } : p
-                                                                        ));
-                                                                    }
-                                                                } catch (error) {
-                                                                    alert('ステータス更新に失敗しました');
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                border: '1px solid #ccc',
-                                                                borderRadius: '4px',
-                                                                padding: '2px 4px',
-                                                                fontSize: '12px',
-                                                                backgroundColor: member.status === 1 ? '#d4edda' : '#fff'
-                                                            }}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            {statusOptions.filter(opt => opt.code !== 10).map(opt => (
-                                                                <option key={opt.code} value={opt.code}>{opt.name}</option>
-                                                            ))}
-                                                        </select>
+                                                                }}
+                                                                style={{
+                                                                    border: '1px solid #ccc',
+                                                                    borderRadius: '4px',
+                                                                    padding: '2px 4px',
+                                                                    fontSize: '12px',
+                                                                    backgroundColor: member.status === 1 ? '#d4edda' : '#fff'
+                                                                }}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                {statusOptions.filter(opt => opt.code !== 10).map(opt => (
+                                                                    <option key={opt.code} value={opt.code}>{opt.name}</option>
+                                                                ))}
+                                                            </select>
+                                                            {(member.status === 30 || member.status === 40) && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleOpenItemsModal(entry, member);
+                                                                    }}
+                                                                    style={{
+                                                                        marginLeft: '4px',
+                                                                        padding: '2px 6px',
+                                                                        fontSize: '11px',
+                                                                        backgroundColor: '#28a745',
+                                                                        color: '#fff',
+                                                                        border: 'none',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                >
+                                                                    商品
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -593,7 +651,8 @@ function LotteriesContent() {
                         </div>
                     );
                 })}
-            </div>
+
+            </div >
 
             <footer
                 style={{
@@ -670,208 +729,212 @@ function LotteriesContent() {
             </footer>
 
             {/* Purchase Items Modal */}
-            {showItemsModal && modalProduct && selectedEntry && selectedMember && (
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1000,
-                    }}
-                    onClick={() => setShowItemsModal(false)}
-                >
+            {
+                showItemsModal && modalProduct && selectedEntry && selectedMember && (
                     <div
                         style={{
-                            backgroundColor: '#fff',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            maxWidth: '500px',
-                            width: '90%',
-                            maxHeight: '80vh',
-                            overflow: 'auto',
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 1000,
                         }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={() => setShowItemsModal(false)}
                     >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h2 style={{ margin: 0, fontSize: '18px' }}>購入商品登録</h2>
-                            <button
-                                onClick={() => setShowItemsModal(false)}
-                                style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }}
-                            >
-                                ×
-                            </button>
-                        </div>
+                        <div
+                            style={{
+                                backgroundColor: '#fff',
+                                borderRadius: '8px',
+                                padding: '20px',
+                                maxWidth: '500px',
+                                width: '90%',
+                                maxHeight: '80vh',
+                                overflow: 'auto',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                <h2 style={{ margin: 0, fontSize: '18px' }}>購入商品登録</h2>
+                                <button
+                                    onClick={() => setShowItemsModal(false)}
+                                    style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', padding: 0 }}
+                                >
+                                    ×
+                                </button>
+                            </div>
 
-                        <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
-                            <div><strong>メンバー:</strong> {selectedMember.name}</div>
-                            <div><strong>ステータス:</strong> {statusMap[selectedMember.status] || selectedMember.status}</div>
-                        </div>
+                            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                                <div><strong>メンバー:</strong> {selectedMember.name}</div>
+                                <div><strong>ステータス:</strong> {statusMap[selectedMember.status] || selectedMember.status}</div>
+                            </div>
 
-                        <div style={{ marginBottom: '16px' }}>
-                            {modalProduct.productRelations && modalProduct.productRelations.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    {modalProduct.productRelations.map((relation: any) => {
-                                        const qty = itemQuantities[relation.code] || 0;
-                                        const subtotal = relation.price * qty;
+                            <div style={{ marginBottom: '16px' }}>
+                                {modalProduct.productRelations && modalProduct.productRelations.length > 0 ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {modalProduct.productRelations.map((relation: any) => {
+                                            const qty = itemQuantities[relation.code] || 0;
+                                            const subtotal = relation.price * qty;
 
-                                        return (
-                                            <div
-                                                key={relation.code}
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '8px',
-                                                    padding: '8px',
-                                                    border: '1px solid #ddd',
-                                                    borderRadius: '4px',
-                                                }}
-                                            >
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{ fontWeight: 'bold' }}>{relation.shortName}</div>
-                                                    <div style={{ fontSize: '12px', color: '#666' }}>¥{relation.price.toLocaleString()}</div>
+                                            return (
+                                                <div
+                                                    key={relation.code}
+                                                    style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '8px',
+                                                        padding: '8px',
+                                                        border: '1px solid #ddd',
+                                                        borderRadius: '4px',
+                                                    }}
+                                                >
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontWeight: 'bold' }}>{relation.shortName}</div>
+                                                        <div style={{ fontSize: '12px', color: '#666' }}>¥{relation.price.toLocaleString()}</div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <button
+                                                            onClick={() => {
+                                                                const newQty = Math.max(0, qty - 1);
+                                                                setItemQuantities(prev => ({ ...prev, [relation.code]: newQty }));
+                                                            }}
+                                                            style={{
+                                                                width: '28px',
+                                                                height: '28px',
+                                                                border: '1px solid #ccc',
+                                                                borderRadius: '4px',
+                                                                backgroundColor: '#fff',
+                                                                cursor: 'pointer',
+                                                            }}
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            value={qty === 0 ? '' : qty}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                const newQty = val === '' ? 0 : parseInt(val);
+                                                                setItemQuantities(prev => ({ ...prev, [relation.code]: newQty }));
+                                                            }}
+                                                            style={{
+                                                                width: '50px',
+                                                                textAlign: 'center',
+                                                                border: '1px solid #ccc',
+                                                                borderRadius: '4px',
+                                                                padding: '4px',
+                                                            }}
+                                                            placeholder="0"
+                                                        />
+                                                        <button
+                                                            onClick={() => {
+                                                                const newQty = qty + 1;
+                                                                setItemQuantities(prev => ({ ...prev, [relation.code]: newQty }));
+                                                            }}
+                                                            style={{
+                                                                width: '28px',
+                                                                height: '28px',
+                                                                border: '1px solid #ccc',
+                                                                borderRadius: '4px',
+                                                                backgroundColor: '#fff',
+                                                                cursor: 'pointer',
+                                                            }}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                    <div style={{ width: '80px', textAlign: 'right', fontSize: '14px' }}>
+                                                        ¥{subtotal.toLocaleString()}
+                                                    </div>
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <button
-                                                        onClick={() => {
-                                                            const newQty = Math.max(0, qty - 1);
-                                                            setItemQuantities(prev => ({ ...prev, [relation.code]: newQty }));
-                                                        }}
-                                                        style={{
-                                                            width: '28px',
-                                                            height: '28px',
-                                                            border: '1px solid #ccc',
-                                                            borderRadius: '4px',
-                                                            backgroundColor: '#fff',
-                                                            cursor: 'pointer',
-                                                        }}
-                                                    >
-                                                        -
-                                                    </button>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        value={qty}
-                                                        onChange={(e) => {
-                                                            const newQty = Math.max(0, parseInt(e.target.value) || 0);
-                                                            setItemQuantities(prev => ({ ...prev, [relation.code]: newQty }));
-                                                        }}
-                                                        style={{
-                                                            width: '50px',
-                                                            textAlign: 'center',
-                                                            border: '1px solid #ccc',
-                                                            borderRadius: '4px',
-                                                            padding: '4px',
-                                                        }}
-                                                    />
-                                                    <button
-                                                        onClick={() => {
-                                                            const newQty = qty + 1;
-                                                            setItemQuantities(prev => ({ ...prev, [relation.code]: newQty }));
-                                                        }}
-                                                        style={{
-                                                            width: '28px',
-                                                            height: '28px',
-                                                            border: '1px solid #ccc',
-                                                            borderRadius: '4px',
-                                                            backgroundColor: '#fff',
-                                                            cursor: 'pointer',
-                                                        }}
-                                                    >
-                                                        +
-                                                    </button>
-                                                </div>
-                                                <div style={{ width: '80px', textAlign: 'right', fontSize: '14px' }}>
-                                                    ¥{subtotal.toLocaleString()}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
+                                        関連商品がありません
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ borderTop: '2px solid #333', paddingTop: '12px', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 'bold' }}>
+                                    <span>合計:</span>
+                                    <span>
+                                        ¥{Object.entries(itemQuantities).reduce((total, [code, qty]) => {
+                                            const relation = modalProduct.productRelations?.find((r: any) => r.code === code);
+                                            return total + (relation ? relation.price * qty : 0);
+                                        }, 0).toLocaleString()}
+                                    </span>
                                 </div>
-                            ) : (
-                                <div style={{ color: '#999', textAlign: 'center', padding: '20px' }}>
-                                    関連商品がありません
-                                </div>
-                            )}
-                        </div>
+                            </div>
 
-                        <div style={{ borderTop: '2px solid #333', paddingTop: '12px', marginBottom: '16px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 'bold' }}>
-                                <span>合計:</span>
-                                <span>
-                                    ¥{Object.entries(itemQuantities).reduce((total, [code, qty]) => {
-                                        const relation = modalProduct.productRelations?.find((r: any) => r.code === code);
-                                        return total + (relation ? relation.price * qty : 0);
-                                    }, 0).toLocaleString()}
-                                </span>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setShowItemsModal(false)}
+                                    style={{
+                                        padding: '8px 16px',
+                                        border: '1px solid #ccc',
+                                        borderRadius: '4px',
+                                        backgroundColor: '#fff',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    キャンセル
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            const items = modalProduct.productRelations
+                                                ?.map((relation: any) => ({
+                                                    code: relation.code,
+                                                    shortName: relation.shortName,
+                                                    quantity: itemQuantities[relation.code] || 0,
+                                                    amount: relation.price * (itemQuantities[relation.code] || 0),
+                                                }))
+                                                .filter((item: any) => item.quantity > 0) || [];
+
+                                            const res = await fetch(`/api/entries/${selectedEntry.id}/members/${selectedMember.id}/items`, {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ items }),
+                                            });
+
+                                            if (!res.ok) {
+                                                throw new Error('Failed to save items');
+                                            }
+
+                                            setShowItemsModal(false);
+                                            alert('購入商品情報を保存しました');
+                                        } catch (error) {
+                                            console.error('Error saving items:', error);
+                                            alert('保存に失敗しました');
+                                        }
+                                    }}
+                                    style={{
+                                        padding: '8px 16px',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        backgroundColor: '#1e90ff',
+                                        color: '#fff',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                    }}
+                                >
+                                    保存
+                                </button>
                             </div>
                         </div>
-
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                            <button
-                                onClick={() => setShowItemsModal(false)}
-                                style={{
-                                    padding: '8px 16px',
-                                    border: '1px solid #ccc',
-                                    borderRadius: '4px',
-                                    backgroundColor: '#fff',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                キャンセル
-                            </button>
-                            <button
-                                onClick={async () => {
-                                    try {
-                                        const items = modalProduct.productRelations
-                                            ?.map((relation: any) => ({
-                                                code: relation.code,
-                                                shortName: relation.shortName,
-                                                quantity: itemQuantities[relation.code] || 0,
-                                                amount: relation.price * (itemQuantities[relation.code] || 0),
-                                            }))
-                                            .filter((item: any) => item.quantity > 0) || [];
-
-                                        const res = await fetch(`/api/entries/${selectedEntry.id}/members/${selectedMember.id}/items`, {
-                                            method: 'PUT',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ items }),
-                                        });
-
-                                        if (!res.ok) {
-                                            throw new Error('Failed to save items');
-                                        }
-
-                                        setShowItemsModal(false);
-                                        alert('購入商品情報を保存しました');
-                                    } catch (error) {
-                                        console.error('Error saving items:', error);
-                                        alert('保存に失敗しました');
-                                    }
-                                }}
-                                style={{
-                                    padding: '8px 16px',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    backgroundColor: '#1e90ff',
-                                    color: '#fff',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                保存
-                            </button>
-                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
-        </main>
+        </main >
     );
 }
 export default function LotteriesPage() {

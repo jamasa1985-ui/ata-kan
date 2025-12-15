@@ -97,7 +97,7 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                         </div>
                         <div>
                             <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>表示順</label>
-                            <input type="number" value={formData.order} onChange={(e) => setFormData({ ...formData, order: Number(e.target.value) })} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '14px', color: '#000' }} />
+                            <input type="number" value={formData.order === 0 ? '' : formData.order} onChange={(e) => setFormData({ ...formData, order: e.target.value === '' ? 0 : Number(e.target.value) })} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '14px', color: '#000' }} placeholder="0" />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', paddingTop: '24px' }}>
                             <input
@@ -126,7 +126,7 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始日 (相対日数)</label>
-                                    <input type="number" value={formData.applyStartDate ?? ''} onChange={(e) => setFormData({ ...formData, applyStartDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                    <input type="number" value={formData.applyStartDate === 0 ? '' : (formData.applyStartDate ?? '')} onChange={(e) => setFormData({ ...formData, applyStartDate: e.target.value === '' ? 0 : Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} placeholder="0" />
                                 </div>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始時間</label>
@@ -136,7 +136,7 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了日 (相対日数)</label>
-                                    <input type="number" value={formData.applyEndDate ?? ''} onChange={(e) => setFormData({ ...formData, applyEndDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                    <input type="number" value={formData.applyEndDate === 0 ? '' : (formData.applyEndDate ?? '')} onChange={(e) => setFormData({ ...formData, applyEndDate: e.target.value === '' ? 0 : Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} placeholder="0" />
                                 </div>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了時間</label>
@@ -152,7 +152,7 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                             <div style={{ flex: 1, minWidth: '140px' }}>
                                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>発表日 (相対日数)</label>
-                                <input type="number" value={formData.resultDate ?? ''} onChange={(e) => setFormData({ ...formData, resultDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                <input type="number" value={formData.resultDate === 0 ? '' : (formData.resultDate ?? '')} onChange={(e) => setFormData({ ...formData, resultDate: e.target.value === '' ? 0 : Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} placeholder="0" />
                             </div>
                             <div style={{ flex: 1, minWidth: '140px' }}>
                                 <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>発表時間</label>
@@ -168,7 +168,7 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始日 (相対日数)</label>
-                                    <input type="number" value={formData.purchaseStartDate ?? ''} onChange={(e) => setFormData({ ...formData, purchaseStartDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                    <input type="number" value={formData.purchaseStartDate === 0 ? '' : (formData.purchaseStartDate ?? '')} onChange={(e) => setFormData({ ...formData, purchaseStartDate: e.target.value === '' ? 0 : Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} placeholder="0" />
                                 </div>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>開始時間</label>
@@ -178,7 +178,7 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了日 (相対日数)</label>
-                                    <input type="number" value={formData.purchaseEndDate ?? ''} onChange={(e) => setFormData({ ...formData, purchaseEndDate: Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} />
+                                    <input type="number" value={formData.purchaseEndDate === 0 ? '' : (formData.purchaseEndDate ?? '')} onChange={(e) => setFormData({ ...formData, purchaseEndDate: e.target.value === '' ? 0 : Number(e.target.value) })} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', color: '#000', boxSizing: 'border-box' }} placeholder="0" />
                                 </div>
                                 <div style={{ flex: 1, minWidth: '140px' }}>
                                     <label style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>終了時間</label>

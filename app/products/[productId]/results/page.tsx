@@ -310,10 +310,10 @@ export default function ProductResultsPage({ params }: PageProps) {
                                     backgroundColor: isOpen ? '#fff' : '#fff3cd',
                                 }}
                             >
-                                <div style={{ fontSize: '16px', fontWeight: isOpen ? 'bold' : 'normal' }}>
+                                <div style={{ fontSize: '16px', fontWeight: isOpen ? 'bold' : 'normal', flex: 1, minWidth: 0, paddingRight: '8px' }}>
                                     {entry.shopShortName}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
                                     <span style={{ fontSize: '14px' }}>{statusName}</span>
                                     <span style={{ fontSize: '14px' }}>
                                         {entry.resultDate ? formatShortDate(entry.resultDate) : ''}
@@ -337,24 +337,35 @@ export default function ProductResultsPage({ params }: PageProps) {
                                         </span>
                                     </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>応募期間：</div>
-                                        <div style={{ color: '#333' }}>
-                                            {formatDate(entry.applyStart)} ～ {formatDate(entry.applyEnd)}
+                                    {Number(entry.status) === 40 ? (
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <div style={{ fontWeight: 'bold', color: '#000' }}>購入日：</div>
+                                            <div style={{ color: '#333' }}>
+                                                {formatDate((entry as any).purchaseDate)}
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>応募期間：</div>
+                                                <div style={{ color: '#333' }}>
+                                                    {formatDate(entry.applyStart)} ～ {formatDate(entry.applyEnd)}
+                                                </div>
+                                            </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>発表日：</div>
-                                        <div style={{ color: '#333' }}>{formatDate(entry.resultDate)}</div>
-                                    </div>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>発表日：</div>
+                                                <div style={{ color: '#333' }}>{formatDate(entry.resultDate)}</div>
+                                            </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>購入期限：</div>
-                                        <div style={{ color: '#333' }}>
-                                            {formatDate(entry.purchaseStart)} ～ {formatDate(entry.purchaseEnd)}
-                                        </div>
-                                    </div>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>購入期限：</div>
+                                                <div style={{ color: '#333' }}>
+                                                    {formatDate(entry.purchaseStart)} ～ {formatDate(entry.purchaseEnd)}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
 
                                     <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
                                         <div style={{ fontWeight: 'bold', marginRight: '8px', color: '#000' }}>URL：</div>
@@ -558,7 +569,7 @@ export default function ProductResultsPage({ params }: PageProps) {
                                                 </div>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                     <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, qty - 1) }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>-</button>
-                                                    <input type="number" min="0" value={qty} onChange={(e) => setItemQuantities(prev => ({ ...prev, [relation.code]: Math.max(0, parseInt(e.target.value) || 0) }))} style={{ width: '50px', textAlign: 'center', border: '1px solid #ccc', borderRadius: '4px', padding: '4px' }} />
+                                                    <input type="number" min="0" value={qty === 0 ? '' : qty} onChange={(e) => { const val = e.target.value; setItemQuantities(prev => ({ ...prev, [relation.code]: val === '' ? 0 : parseInt(val) })) }} style={{ width: '50px', textAlign: 'center', border: '1px solid #ccc', borderRadius: '4px', padding: '4px' }} placeholder="0" />
                                                     <button onClick={() => setItemQuantities(prev => ({ ...prev, [relation.code]: qty + 1 }))} style={{ width: '28px', height: '28px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: '#fff', cursor: 'pointer' }}>+</button>
                                                 </div>
                                                 <div style={{ width: '80px', textAlign: 'right', fontSize: '14px' }}>¥{subtotal.toLocaleString()}</div>

@@ -345,10 +345,10 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                     backgroundColor: isOpen ? '#fff' : '#e6f2ff',
                                 }}
                             >
-                                <div style={{ fontSize: '16px', fontWeight: isOpen ? 'bold' : 'normal' }}>
+                                <div style={{ fontSize: '16px', fontWeight: isOpen ? 'bold' : 'normal', flex: 1, minWidth: 0, paddingRight: '8px' }}>
                                     {entry.shopShortName}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                                     <span style={{ fontSize: '14px' }}>{statusName}</span>
                                     <span style={{
                                         fontSize: '14px',
@@ -383,24 +383,35 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                         </span>
                                     </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>応募期間：</div>
-                                        <div style={{ color: '#333' }}>
-                                            {formatDate(entry.applyStart)} ～ {formatDate(entry.applyEnd)}
+                                    {Number(entry.status) === 40 ? (
+                                        <div style={{ marginBottom: '8px' }}>
+                                            <div style={{ fontWeight: 'bold', color: '#000' }}>購入日：</div>
+                                            <div style={{ color: '#333' }}>
+                                                {formatDate(entry.purchaseDate)}
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>応募期間：</div>
+                                                <div style={{ color: '#333' }}>
+                                                    {formatDate(entry.applyStart)} ～ {formatDate(entry.applyEnd)}
+                                                </div>
+                                            </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>発表日：</div>
-                                        <div style={{ color: '#333' }}>{formatDate(entry.resultDate)}</div>
-                                    </div>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>発表日：</div>
+                                                <div style={{ color: '#333' }}>{formatDate(entry.resultDate)}</div>
+                                            </div>
 
-                                    <div style={{ marginBottom: '8px' }}>
-                                        <div style={{ fontWeight: 'bold', color: '#000' }}>購入期限：</div>
-                                        <div style={{ color: '#333' }}>
-                                            {formatDate(entry.purchaseStart)} ～ {formatDate(entry.purchaseEnd)}
-                                        </div>
-                                    </div>
+                                            <div style={{ marginBottom: '8px' }}>
+                                                <div style={{ fontWeight: 'bold', color: '#000' }}>購入期限：</div>
+                                                <div style={{ color: '#333' }}>
+                                                    {formatDate(entry.purchaseStart)} ～ {formatDate(entry.purchaseEnd)}
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
 
                                     <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center' }}>
                                         <div style={{ fontWeight: 'bold', marginRight: '8px', color: '#000' }}>URL：</div>
@@ -684,9 +695,10 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                                     <input
                                                         type="number"
                                                         min="0"
-                                                        value={qty}
+                                                        value={qty === 0 ? '' : qty}
                                                         onChange={(e) => {
-                                                            const newQty = Math.max(0, parseInt(e.target.value) || 0);
+                                                            const val = e.target.value;
+                                                            const newQty = val === '' ? 0 : parseInt(val);
                                                             setItemQuantities(prev => ({ ...prev, [relation.code]: newQty }));
                                                         }}
                                                         style={{
@@ -696,6 +708,7 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                                             borderRadius: '4px',
                                                             padding: '4px',
                                                         }}
+                                                        placeholder="0"
                                                     />
                                                     <button
                                                         onClick={() => {
