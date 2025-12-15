@@ -114,7 +114,7 @@ function PurchasesContent() {
         return entries.filter(e => {
             if (mode === 'management') {
                 // Status check: 30, 40, 99
-                if (![30, 40, 99].includes(e.status)) return false;
+                if (![30, 40].includes(e.status)) return false;
 
                 const now = new Date();
 
