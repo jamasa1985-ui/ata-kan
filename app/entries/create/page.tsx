@@ -34,12 +34,36 @@ type EntryForm = {
 // Helper for datetime-local
 const toDatetimeLocal = (val: string) => {
     if (!val) return '';
+    // If format is YYYY/MM/DD HH:mm
+    if (val.includes('/')) {
+        const [date, time] = val.split(' ');
+        if (date && time) {
+            return `${date.replace(/\//g, '-')}T${time}`;
+        }
+    }
+    // Fallback for ISO or other formats
     const d = new Date(val);
     if (isNaN(d.getTime())) return '';
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+// Helper for DB format YYYY/MM/DD HH:mm
+const toDbFormat = (val: string) => {
+    if (!val) return '';
+    // val is YYYY-MM-DDTHH:mm
+    const [date, time] = val.split('T');
+    if (date && time) {
+        return `${date.replace(/-/g, '/')} ${time}`;
+    }
+    return val;
+};
+
+// Helper to format Date object to YYYY/MM/DD HH:mm
+const formatDateToDb = (d: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
 
 
 // ... types and helper functions ...
@@ -62,12 +86,10 @@ function CreateEntryContent() {
     const [products, setProducts] = useState<ProductWithRelease[]>([]); // Minimal needed
 
     // Helper for default time (current hour)
-    const getCurrentHourISO = () => {
+    const getCurrentHourDbFormat = () => {
         const d = new Date();
         d.setMinutes(0, 0, 0); // Round down to hour
-        // Format to YYYY-MM-DDTHH:mm for local time input
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return formatDateToDb(d);
     };
 
     const [formData, setFormData] = useState<EntryForm>({
@@ -77,11 +99,11 @@ function CreateEntryContent() {
         shopShortName: '',
         status: '21',
         applyMethod: '',
-        applyStart: getCurrentHourISO(),
-        applyEnd: getCurrentHourISO(),
-        resultDate: getCurrentHourISO(),
-        purchaseStart: getCurrentHourISO(),
-        purchaseEnd: getCurrentHourISO(),
+        applyStart: getCurrentHourDbFormat(),
+        applyEnd: getCurrentHourDbFormat(),
+        resultDate: getCurrentHourDbFormat(),
+        purchaseStart: getCurrentHourDbFormat(),
+        purchaseEnd: getCurrentHourDbFormat(),
         purchaseDate: '',
         purchaseMembers: [],
         memo: '',
@@ -113,7 +135,7 @@ function CreateEntryContent() {
                         d.setHours(h, m, 0, 0);
                     }
                 }
-                return d.toISOString(); // Store as ISO
+                return formatDateToDb(d);
             };
 
             const newDates: Partial<EntryForm> = {};
@@ -230,7 +252,6 @@ function CreateEntryContent() {
         };
 
         fetchOptions();
-        fetchOptions(); // Duplicate call in original, removing it here implicitly by just one block... wait, original had two. I'll stick to one.
         fetchShops();
         fetchMembers();
         fetchProduct();
@@ -248,18 +269,11 @@ function CreateEntryContent() {
 
         try {
             // Prepare payload
-            // Convert datetime-local strings to ISO strings or keep as is? 
-            // Existing data seems to use full ISO strings often.
+            // Send dates as is (YYYY/MM/DD HH:mm format)
             const payload = {
                 ...formData,
                 status: Number(formData.status), // convert to number for status code
-                // Dates: if empty string, send null/undefined or empty string? Firestore handles mixed well but cleaner to be explicit.
-                applyStart: formData.applyStart ? new Date(formData.applyStart).toISOString() : null,
-                applyEnd: formData.applyEnd ? new Date(formData.applyEnd).toISOString() : null,
-                resultDate: formData.resultDate ? new Date(formData.resultDate).toISOString() : null,
-                purchaseStart: formData.purchaseStart ? new Date(formData.purchaseStart).toISOString() : null,
-                purchaseEnd: formData.purchaseEnd ? new Date(formData.purchaseEnd).toISOString() : null,
-                purchaseDate: formData.purchaseDate ? new Date(formData.purchaseDate).toISOString() : null,
+                // Dates are already in string format from state
             };
 
             const res = await fetch('/api/entries', {
@@ -287,7 +301,8 @@ function CreateEntryContent() {
     };
 
     const handleDateChange = (field: keyof EntryForm, val: string) => {
-        setFormData(prev => ({ ...prev, [field]: val }));
+        // val is YYYY-MM-DDTHH:mm from input
+        setFormData(prev => ({ ...prev, [field]: toDbFormat(val) }));
     };
 
     const toggleUndecided = (field: keyof EntryForm) => {
@@ -298,7 +313,7 @@ function CreateEntryContent() {
                 return { ...prev, [field]: '' };
             } else {
                 // If currently empty (undecided is checked), we are unchecking it -> set to default time
-                return { ...prev, [field]: getCurrentHourISO() };
+                return { ...prev, [field]: getCurrentHourDbFormat() };
             }
         });
     };
@@ -342,7 +357,7 @@ function CreateEntryContent() {
                 maxWidth={480}
                 backgroundColor="#1e90ff"
                 leftContent={
-                    <button onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333', fontSize: 12 }}>戻る</button>
+                    <button type="button" onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333', fontSize: 12 }}>戻る</button>
                 }
                 rightContent={
                     <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
@@ -453,7 +468,7 @@ function CreateEntryContent() {
                                 type="datetime-local"
                                 style={{ flex: 1, padding: 8, borderRadius: 4, border: '1px solid #ccc', boxSizing: 'border-box' }}
                                 value={toDatetimeLocal(formData[item.field as keyof EntryForm] as string)}
-                                onChange={(e) => handleDateChange(item.field as keyof EntryForm, new Date(e.target.value).toISOString())}
+                                onChange={(e) => handleDateChange(item.field as keyof EntryForm, e.target.value)}
                                 // Note: toDatetimeLocal expects ISO/DateStr -> returns local format.
                                 // onChange gets local format. We should probably store as ISO.
                                 // The original code stored whatever was passed. Let's make sure we store ISO to be consistent with calculation.
@@ -568,12 +583,14 @@ function CreateEntryContent() {
             }}>
                 <div style={{ maxWidth: '480px', width: '100%', margin: '0 auto', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                     <button
+                        type="button"
                         onClick={handleCancel}
                         style={{ backgroundColor: '#fff', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
                         キャンセル
                     </button>
                     <button
+                        type="button"
                         onClick={handleRegister}
                         disabled={loading}
                         style={{ backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: 4, padding: '8px 24px', fontWeight: 'bold', cursor: loading ? 'not-allowed' : 'pointer' }}

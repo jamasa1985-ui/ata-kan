@@ -267,16 +267,18 @@ export default function SchedulePage() {
                     justifyContent: 'flex-start'
                 }}>
                     <Link href="/entries/create/schedule">
-                        <button style={{
-                            backgroundColor: '#fff',
-                            color: '#333',
-                            border: 'none',
-                            padding: '6px 16px',
-                            borderRadius: '4px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            fontSize: '14px'
-                        }}>
+                        <button
+                            type="button"
+                            style={{
+                                backgroundColor: '#fff',
+                                color: '#333',
+                                border: 'none',
+                                padding: '6px 16px',
+                                borderRadius: '4px',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                fontSize: '14px'
+                            }}>
                             抽選情報登録
                         </button>
                     </Link>

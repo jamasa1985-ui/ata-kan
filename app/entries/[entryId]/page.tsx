@@ -195,27 +195,45 @@ export default function EditEntryPage({ params }: PageProps) {
         handleRedirect();
     };
 
-    // Helper for default time (current hour)
-    const getCurrentHourISO = () => {
+    // Helper for default time (current hour in DB format)
+    const getCurrentHourDbFormat = () => {
         const d = new Date();
         d.setMinutes(0, 0, 0); // Round down to hour
-        // Format to YYYY-MM-DDTHH:mm for local time input
         const pad = (n: number) => n.toString().padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
     // Helper for datetime-local
     const toDatetimeLocal = (val: string | Date | undefined) => {
         if (!val) return '';
+        const strVal = String(val);
+        // If YYYY/MM/DD HH:mm
+        if (strVal.includes('/')) {
+            const [date, time] = strVal.split(' ');
+            if (date && time) {
+                return `${date.replace(/\//g, '-')}T${time}`;
+            }
+        }
+        // Fallback
         const d = new Date(val);
         if (isNaN(d.getTime())) return '';
         const pad = (n: number) => n.toString().padStart(2, '0');
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     };
 
+    // Helper for DB format
+    const toDbFormat = (val: string) => {
+        if (!val) return '';
+        const [date, time] = val.split('T');
+        if (date && time) {
+            return `${date.replace(/-/g, '/')} ${time}`;
+        }
+        return val;
+    };
+
     const handleDateChange = (field: keyof Entry, val: string) => {
         // val is YYYY-MM-DDTHH:mm
-        setFormData(prev => ({ ...prev, [field]: val ? new Date(val).toISOString() : null }));
+        setFormData(prev => ({ ...prev, [field]: toDbFormat(val) }));
     };
 
     const toggleUndecided = (field: keyof Entry) => {
@@ -226,7 +244,7 @@ export default function EditEntryPage({ params }: PageProps) {
                 return { ...prev, [field]: null };
             } else {
                 // If currently empty, we are unchecking "Undecided" -> set to default time
-                return { ...prev, [field]: new Date(getCurrentHourISO()).toISOString() };
+                return { ...prev, [field]: getCurrentHourDbFormat() };
             }
         });
     };
@@ -285,7 +303,7 @@ export default function EditEntryPage({ params }: PageProps) {
                 maxWidth={480}
                 backgroundColor="#1e90ff"
                 leftContent={
-                    <button onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333', fontSize: 12 }}>戻る</button>
+                    <button type="button" onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333', fontSize: 12 }}>戻る</button>
                 }
                 rightContent={
                     <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
@@ -539,6 +557,7 @@ export default function EditEntryPage({ params }: PageProps) {
             }}>
                 <div style={{ width: '100%', maxWidth: '480px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button
+                        type="button"
                         onClick={handleDelete}
                         style={{ backgroundColor: '#fff', color: '#dc3545', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
                     >
@@ -546,12 +565,14 @@ export default function EditEntryPage({ params }: PageProps) {
                     </button>
                     <div style={{ display: 'flex', gap: 8 }}>
                         <button
+                            type="button"
                             onClick={handleCancel}
                             style={{ backgroundColor: '#fff', color: '#333', border: 'none', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
                         >
                             キャンセル
                         </button>
                         <button
+                            type="button"
                             onClick={handleUpdate}
                             style={{ backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: 4, padding: '8px 24px', fontWeight: 'bold', cursor: 'pointer' }}
                         >

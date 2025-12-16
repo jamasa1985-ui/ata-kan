@@ -99,7 +99,7 @@ export default function ProductForm({ initialData, isEdit, productId, onSubmit, 
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', paddingTop: '80px', fontFamily: 'system-ui, sans-serif', color: '#000' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', paddingTop: '80px', fontFamily: 'system-ui, sans-serif', color: '#000' }}>
             <Header
                 title={isEdit ? '商品編集' : '商品登録'}
                 backLinkText="一覧に戻る"
@@ -158,6 +158,7 @@ export default function ProductForm({ initialData, isEdit, productId, onSubmit, 
                         />
                         <label style={{ fontWeight: 'bold', fontSize: '14px' }}>表示フラグ（有効にする）</label>
                     </div>
+
                 </div>
 
                 {/* 関連商品 (Relations) */}
@@ -239,7 +240,8 @@ export default function ProductForm({ initialData, isEdit, productId, onSubmit, 
                             )}
                         </div>
                         <button
-                            type="submit"
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); handleSubmit(e); }}
                             disabled={loading}
                             style={{ padding: '8px 24px', backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                         >
@@ -248,6 +250,6 @@ export default function ProductForm({ initialData, isEdit, productId, onSubmit, 
                     </div>
                 </div>
             </div>
-        </form>
+        </div>
     );
 }

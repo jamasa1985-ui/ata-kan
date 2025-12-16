@@ -60,7 +60,7 @@ export default function MemberForm({ initialData, isEdit, memberId, onSubmit, on
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', paddingTop: '80px', fontFamily: 'system-ui, sans-serif', color: '#000' }}>
+        <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5', paddingBottom: '40px', paddingTop: '80px', fontFamily: 'system-ui, sans-serif', color: '#000' }}>
             <Header
                 title={isEdit ? 'メンバー編集' : 'メンバー登録'}
                 backLinkText="一覧に戻る"
@@ -120,9 +120,9 @@ export default function MemberForm({ initialData, isEdit, memberId, onSubmit, on
                             <button type="button" onClick={handleDelete} disabled={loading} style={{ padding: '8px 16px', backgroundColor: '#fff', color: '#dc3545', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>削除</button>
                         )}
                     </div>
-                    <button type="submit" disabled={loading} style={{ padding: '8px 24px', backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? '処理中...' : (isEdit ? '更新' : '登録')}</button>
+                    <button type="button" onClick={(e) => { e.preventDefault(); handleSubmit(e); }} disabled={loading} style={{ padding: '8px 24px', backgroundColor: '#fff', color: '#1e90ff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>{loading ? '処理中...' : (isEdit ? '更新' : '登録')}</button>
                 </div>
             </div>
-        </form>
+        </div>
     );
 }
