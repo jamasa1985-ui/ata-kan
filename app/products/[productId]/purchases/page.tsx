@@ -189,22 +189,22 @@ export default function ProductPurchasesPage({ params }: PageProps) {
         });
 
         return filtered.sort((a, b) => {
-            // 1. Sort by Status Order
-            const orderA = statusOrder[a.status.toString()] || 999;
-            const orderB = statusOrder[b.status.toString()] || 999;
-            if (orderA !== orderB) {
-                return orderA - orderB;
+            // 1. Status
+            const statusA = Number(a.status);
+            const statusB = Number(b.status);
+            if (statusA !== statusB) {
+                return statusA - statusB;
             }
 
-            // 2. Sort by Date (purchaseEnd for 当選, purchaseDate for 購入済)
-            // If purchaseDate exists, use it mainly for sorting effectively as "acted upon"
-            const dateA = (a as any).purchaseDate || a.purchaseEnd;
-            const dateB = (b as any).purchaseDate || b.purchaseEnd;
+            // 2. Date
+            const dateA = statusA === 30 ? a.purchaseEnd : (a as any).purchaseDate;
+            const dateB = statusB === 30 ? b.purchaseEnd : (b as any).purchaseDate;
 
             if (!dateA && !dateB) return 0;
             if (!dateA) return 1;
             if (!dateB) return -1;
-            return new Date(dateA).getTime() - new Date(dateB).getTime();
+
+            return new Date(dateA).getTime() - new Date(dateB).getTime(); // Ascending
         });
     }, [productEntries, currentTab, statusOptions, statusMap]);
 
@@ -360,22 +360,18 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                         width: '110px',
                                         justifyContent: 'flex-end'
                                     }}>
-                                        {/* Show Purchase Date if available, otherwise Purchase Deadline for Winners */}
-                                        {(entry as any).purchaseDate ? (
+                                        {/* Status 30: 購〆日 (purchaseEnd) / Status 40: 購入日 (purchaseDate) */}
+                                        {Number(entry.status) === 30 && entry.purchaseEnd ? (
+                                            <>
+                                                <span>購〆日</span>
+                                                <span>{formatShortDate(entry.purchaseEnd)}</span>
+                                            </>
+                                        ) : (Number(entry.status) === 40 || (entry as any).purchaseDate) ? (
                                             <>
                                                 <span>購入日</span>
-                                                <span>{formatShortDate((entry as any).purchaseDate)}</span>
+                                                <span>{entry.purchaseDate ? formatShortDate(entry.purchaseDate) : ''}</span>
                                             </>
-                                        ) : (
-                                            statusName === '当選' ? (
-                                                <>
-                                                    <span>購〆日</span>
-                                                    <span>{entry.purchaseEnd ? formatShortDate(entry.purchaseEnd) : ''}</span>
-                                                </>
-                                            ) : (
-                                                <span></span>
-                                            )
-                                        )}
+                                        ) : null}
                                     </span>
                                     <span style={{ marginLeft: '4px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>
                                         ^
@@ -397,74 +393,121 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                                 {entry.purchaseMembers.map((member) => (
                                                     <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '4px 8px', borderRadius: '4px' }}>
                                                         <span style={{ fontSize: '14px' }}>{member.name}</span>
-                                                        <select
-                                                            value={member.status !== undefined ? member.status : 0}
-                                                            onChange={async (e) => {
-                                                                const newStatus = Number(e.target.value);
+                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                            {(Number(member.status) === 30 || Number(member.status) === 40) && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        // Need to define handleOpenItemsModal or pass logic
+                                                                        // Assuming handleOpenItemsModal exists in this component as per snippet context
+                                                                        setSelectedEntry(entry);
+                                                                        setSelectedMember(member);
 
-                                                                if (newStatus === 30 || newStatus === 40) {
-                                                                    setSelectedEntry(entry);
-                                                                    setSelectedMember(member);
+                                                                        // Fetch items logic reused from onChange or similar
+                                                                        // Better to just call the logic if extracted, but for now inline async fetch
+                                                                        (async () => {
+                                                                            try {
+                                                                                const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+                                                                                if (itemsRes.ok) {
+                                                                                    const itemsData = await itemsRes.json();
+                                                                                    const quantities: Record<string, number> = {};
+                                                                                    itemsData.items.forEach((item: any) => {
+                                                                                        quantities[item.code] = item.quantity;
+                                                                                    });
+                                                                                    setItemQuantities(quantities);
+                                                                                } else {
+                                                                                    setItemQuantities({});
+                                                                                }
+                                                                            } catch (error) {
+                                                                                console.error('Error loading items:', error);
+                                                                                setItemQuantities({});
+                                                                            }
+                                                                            setShowItemsModal(true);
+                                                                        })();
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '2px 6px',
+                                                                        fontSize: '11px',
+                                                                        backgroundColor: '#28a745',
+                                                                        color: '#fff',
+                                                                        border: 'none',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer',
+                                                                        marginRight: '8px'
+                                                                    }}
+                                                                >
+                                                                    商品
+                                                                </button>
+                                                            )}
+                                                            <select
+                                                                value={member.status !== undefined ? member.status : 0}
+                                                                onChange={async (e) => {
+                                                                    const newStatus = Number(e.target.value);
 
-                                                                    try {
-                                                                        const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
-                                                                        if (itemsRes.ok) {
-                                                                            const itemsData = await itemsRes.json();
-                                                                            const quantities: Record<string, number> = {};
-                                                                            itemsData.items.forEach((item: any) => {
-                                                                                quantities[item.code] = item.quantity;
-                                                                            });
-                                                                            setItemQuantities(quantities);
-                                                                        } else {
+                                                                    if (newStatus === 30 || newStatus === 40) {
+                                                                        setSelectedEntry(entry);
+                                                                        setSelectedMember(member);
+
+                                                                        try {
+                                                                            const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+                                                                            if (itemsRes.ok) {
+                                                                                const itemsData = await itemsRes.json();
+                                                                                const quantities: Record<string, number> = {};
+                                                                                itemsData.items.forEach((item: any) => {
+                                                                                    quantities[item.code] = item.quantity;
+                                                                                });
+                                                                                setItemQuantities(quantities);
+                                                                            } else {
+                                                                                setItemQuantities({});
+                                                                            }
+                                                                        } catch (error) {
+                                                                            console.error('Error loading items:', error);
                                                                             setItemQuantities({});
                                                                         }
+
+                                                                        setShowItemsModal(true);
+                                                                    }
+
+                                                                    const updatedMembers = entry.purchaseMembers?.map(m =>
+                                                                        m.id === member.id ? { ...m, status: newStatus } : m
+                                                                    );
+
+                                                                    setProductEntries(prev => prev.map(p =>
+                                                                        p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
+                                                                    ));
+
+                                                                    try {
+                                                                        const res = await fetch(`/api/entries/${entry.id}/members`, {
+                                                                            method: 'PUT',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ members: updatedMembers }),
+                                                                        });
+                                                                        if (!res.ok) {
+                                                                            throw new Error('Failed to update');
+                                                                        }
+                                                                        const data = await res.json();
+                                                                        if (data.newStatus !== undefined) {
+                                                                            setProductEntries(prev => prev.map(p =>
+                                                                                p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                            ));
+                                                                        }
                                                                     } catch (error) {
-                                                                        console.error('Error loading items:', error);
-                                                                        setItemQuantities({});
+                                                                        alert('ステータス更新に失敗しました');
                                                                     }
-
-                                                                    setShowItemsModal(true);
-                                                                }
-
-                                                                const updatedMembers = entry.purchaseMembers?.map(m =>
-                                                                    m.id === member.id ? { ...m, status: newStatus } : m
-                                                                );
-
-                                                                setProductEntries(prev => prev.map(p =>
-                                                                    p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
-                                                                ));
-
-                                                                try {
-                                                                    const res = await fetch(`/api/entries/${entry.id}/members`, {
-                                                                        method: 'PUT',
-                                                                        headers: { 'Content-Type': 'application/json' },
-                                                                        body: JSON.stringify({ members: updatedMembers }),
-                                                                    });
-                                                                    if (!res.ok) {
-                                                                        throw new Error('Failed to update');
-                                                                    }
-                                                                    const data = await res.json();
-                                                                    if (data.newStatus !== undefined) {
-                                                                        setProductEntries(prev => prev.map(p =>
-                                                                            p.id === entry.id ? { ...p, status: data.newStatus } : p
-                                                                        ));
-                                                                    }
-                                                                } catch (error) {
-                                                                    alert('ステータス更新に失敗しました');
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                border: '1px solid #ccc',
-                                                                borderRadius: 4,
-                                                                padding: '2px 4px',
-                                                                fontSize: 12,
-                                                                backgroundColor: '#fff'
-                                                            }}
-                                                        >
-                                                            {statusOptions.filter(opt => opt.code !== 10).map(opt => (
-                                                                <option key={opt.code} value={opt.code}>{opt.name}</option>
-                                                            ))}
-                                                        </select>
+                                                                }}
+                                                                style={{
+                                                                    border: '1px solid #ccc',
+                                                                    borderRadius: 4,
+                                                                    padding: '2px 4px',
+                                                                    fontSize: 12,
+                                                                    backgroundColor: '#fff'
+                                                                }}
+                                                            >
+                                                                {statusOptions.filter(opt => opt.code !== 10).map(opt => (
+                                                                    <option key={opt.code} value={opt.code}>{opt.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -517,33 +560,61 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                 })}
             </div>
 
-            {/* Total Area */}
-            <div style={{
-                position: 'fixed',
-                bottom: 60,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '100%',
-                maxWidth: '480px',
-                backgroundColor: '#f8f9fa',
-                borderTop: '1px solid #ccc',
-                padding: '8px 16px',
-                zIndex: 90,
-                textAlign: 'right',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                lineHeight: 1.4
-            }}>
-                {Object.entries(totals.productTotals).map(([name, qty]) => (
-                    <div key={name}>{name} : {qty}個</div>
-                ))}
-                {Object.entries(totals.memberTotals).map(([name, amount]) => (
-                    <div key={name}>{name}合計 : {amount.toLocaleString()}円</div>
-                ))}
-                <div style={{ fontSize: '16px' }}>合計 : {totals.grandTotal.toLocaleString()}円</div>
+            {/* Fixed Totals Display */}
+            <div
+                style={{
+                    position: 'fixed',
+                    bottom: '60px', // Above the 60px footer
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '100%',
+                    maxWidth: '480px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderTop: '1px solid #ccc',
+                    padding: '8px 12px',
+                    zIndex: 90,
+                    boxShadow: '0 -2px 5px rgba(0,0,0,0.1)',
+                    fontSize: '13px',
+                }}
+            >
+                {/* 1. Item Totals */}
+                {Object.keys(totals.productTotals).length > 0 && (
+                    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px dashed #eee' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>商品計:</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {Object.entries(totals.productTotals).map(([name, qty]) => (
+                                <span key={name} style={{ backgroundColor: '#e6f2ff', padding: '2px 6px', borderRadius: '4px' }}>
+                                    {name}: {qty}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. Member Totals */}
+                {Object.keys(totals.memberTotals).length > 0 && (
+                    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px dashed #eee' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>メンバー計:</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {Object.entries(totals.memberTotals).map(([name, amount]) => (
+                                <span key={name}>
+                                    {name}: ¥{amount.toLocaleString()}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 3. Grand Total */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', fontWeight: 'bold', fontSize: '15px' }}>
+                    <span>合計:</span>
+                    <span style={{ marginLeft: '8px', color: '#1e90ff' }}>¥{totals.grandTotal.toLocaleString()}</span>
+                </div>
             </div>
 
             {/* Footer */}
+
+
             <footer
                 style={{
                     position: 'fixed',

@@ -7,6 +7,7 @@ export type EntryStatus = '未応募' | '応募済' | '当選' | '購入済' | '
 export type Product = {
     id: string;   // URL用のID（スラッグ）
     name: string; // 商品名
+    releaseDate?: string | Date; // 発売日
     productRelations?: Array<{
         code: string;
         name: string;

@@ -63,6 +63,8 @@ function PurchasesContent() {
     const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
     const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
+    const [products, setProducts] = useState<Product[]>([]);
+
     // Fetch Options
     useEffect(() => {
         const fetchOptions = async () => {
@@ -91,49 +93,86 @@ function PurchasesContent() {
         fetchOptions();
     }, []);
 
-    // Fetch All Entries
+    // Fetch All Entries and Products
     useEffect(() => {
-        const fetchEntries = async () => {
+        const fetchData = async () => {
             try {
-                const response = await fetch('/api/entries/all');
-                if (!response.ok) {
-                    throw new Error('応募データの取得に失敗しました');
+                const [entriesRes, productsRes] = await Promise.all([
+                    fetch('/api/entries/all'),
+                    fetch('/api/products?all=true') // Get all products including past ones to map correctly if needed, though we filter later
+                ]);
+
+                if (entriesRes.ok) {
+                    const data: Entry[] = await entriesRes.json();
+                    setEntries(data);
+                } else {
+                    console.error('応募データの取得に失敗しました');
                 }
-                const data: Entry[] = await response.json();
-                setEntries(data);
+
+                if (productsRes.ok) {
+                    const data: Product[] = await productsRes.json();
+                    setProducts(data);
+                } else {
+                    console.error('商品データの取得に失敗しました');
+                }
             } catch (error) {
-                console.error('応募データの取得に失敗しました:', error);
+                console.error('データの取得に失敗しました:', error);
             }
         };
 
-        fetchEntries();
+        fetchData();
     }, []);
 
     // Base Filter (Mode & Date) - Used for Dropdown Options
     const baseFilteredEntries = useMemo(() => {
         return entries.filter(e => {
             if (mode === 'management') {
-                // Status check: 30, 40, 99
+                // Status check: 30, 40
                 if (![30, 40].includes(e.status)) return false;
 
+                // Release Date check (Same as Top Page)
+                const product = products.find(p => p.id === e.productId);
+
+                // If product not found or no releaseDate, what to do?
+                // Assuming we treat as "not displayed" if unknown, or maybe "displayed" if future?
+                // Top logic: return product.releaseDate >= fourteenDaysAgo; (implies must have releaseDate)
+                if (!product || !product.releaseDate) return false;
+
+                const releaseDate = new Date(product.releaseDate);
                 const now = new Date();
+                const fourteenDaysAgo = new Date();
+                fourteenDaysAgo.setDate(now.getDate() - 14);
 
-                // 1. purchaseDate (購入日) がある場合
-                if (e.purchaseDate) {
-                    const purchaseDate = new Date(e.purchaseDate);
-                    const diffTime = now.getTime() - purchaseDate.getTime();
-                    const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                    // 14日以上経過していたら非表示
-                    if (diffDays > 14) return false;
+                // releaseDate >= fourteenDaysAgo (includes future dates)
+                // If "New/Future Product" (within 2 weeks or future)
+                if (releaseDate >= fourteenDaysAgo) {
+                    // Just show if status is 30 or 40 (already checked above)
+                    return true;
                 }
-                // 2. purchaseEnd (購入期限) がある場合
-                else if (e.purchaseEnd) {
-                    const purchaseEnd = new Date(e.purchaseEnd);
-                    // 期限切れなら非表示
-                    if (purchaseEnd < now) return false;
-                }
+                // If "Old Product" (released more than 2 weeks ago)
+                else {
+                    // Status 40 (Purchased): Show if purchased within last 14 days
+                    if (e.status === 40) {
+                        if (e.purchaseDate) {
+                            const purchaseDate = new Date(e.purchaseDate);
+                            const diffTime = now.getTime() - purchaseDate.getTime();
+                            const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                            // Show if within 14 days
+                            if (diffDays <= 14) return true;
+                        }
+                    }
+                    // Status 30 (Won): Show if NOT purchased (implied by status 30) AND deadline not passed
+                    else if (e.status === 30) {
+                        // Check purchaseEnd
+                        if (e.purchaseEnd) {
+                            const purchaseEnd = new Date(e.purchaseEnd);
+                            // Show if NOT expired (future or today)
+                            if (purchaseEnd >= now) return true;
+                        }
+                    }
 
-                return true;
+                    return false;
+                }
             } else {
                 // Default: ステータス40（購入済）のみ表示
                 return e.status === 40;
@@ -161,15 +200,22 @@ function PurchasesContent() {
             filtered = filtered.filter(e => e.productId === selectedProductId);
         }
 
-        // Sort by purchaseDate
+        // Sort by Status Ascending (30 -> 40) then Date Ascending
         return filtered.sort((a, b) => {
-            const dateA = (a as any).purchaseDate;
-            const dateB = (b as any).purchaseDate;
+            // 1. Status
+            if (a.status !== b.status) {
+                return a.status - b.status;
+            }
+
+            // 2. Date
+            const dateA = a.status === 30 ? a.purchaseEnd : (a as any).purchaseDate;
+            const dateB = b.status === 30 ? b.purchaseEnd : (b as any).purchaseDate;
 
             if (!dateA && !dateB) return 0;
             if (!dateA) return 1;
             if (!dateB) return -1;
-            return new Date(dateB).getTime() - new Date(dateA).getTime(); // 新しい順
+
+            return new Date(dateA).getTime() - new Date(dateB).getTime(); // Ascending
         });
     }, [baseFilteredEntries, selectedProductId]);
 
@@ -299,18 +345,60 @@ function PurchasesContent() {
     const totalAmount = useMemo(() => {
         let sum = 0;
         filteredEntries.forEach(entry => {
-            const entryItems = memberItems[entry.id];
-            if (entryItems) {
-                Object.values(entryItems).forEach(items => {
-                    items.forEach(item => {
-                        const val = item.amount || (item.quantity * (item.price || 0));
-                        sum += val || 0;
-                    });
+            const entryItems = memberItems[entry.id] || {};
+            Object.values(entryItems).forEach(items => {
+                items.forEach(item => {
+                    const val = item.amount || (item.quantity * (item.price || 0));
+                    sum += val || 0;
                 });
-            }
+            });
         });
         return sum;
     }, [filteredEntries, memberItems]);
+
+    // Aggregate Member Totals
+    const memberTotals = useMemo(() => {
+        const totals: Record<string, number> = {};
+        filteredEntries.forEach(entry => {
+            // Only aggregate for Management Mode entries (status 30 or 40)?
+            // The filteredEntries are already filtered by mode, so safe to iterate.
+
+            const entryItems = memberItems[entry.id] || {};
+
+            // We need to iterate over members defined in the entry to get their names properly,
+            // or just iterate the keys of entryItems if we trust they match member IDs.
+            // Better to iterate entry.purchaseMembers if available to get Names correctly.
+            if (entry.purchaseMembers) {
+                entry.purchaseMembers.forEach(member => {
+                    const items = entryItems[member.id] || [];
+                    const memberSum = items.reduce((acc, item) => acc + (item.amount || (item.quantity * (item.price || 0))), 0);
+
+                    if (memberSum > 0) {
+                        totals[member.name] = (totals[member.name] || 0) + memberSum;
+                    }
+                });
+            }
+        });
+        return totals;
+    }, [filteredEntries, memberItems]);
+
+    // Aggregate Item Totals (Only needed when filtered by product)
+    const itemTotals = useMemo(() => {
+        if (selectedProductId === 'all') return {};
+
+        const totals: Record<string, number> = {};
+        filteredEntries.forEach(entry => {
+            const entryItems = memberItems[entry.id] || {};
+            Object.values(entryItems).forEach(items => {
+                items.forEach(item => {
+                    if (item.quantity > 0) {
+                        totals[item.shortName] = (totals[item.shortName] || 0) + item.quantity;
+                    }
+                });
+            });
+        });
+        return totals;
+    }, [filteredEntries, memberItems, selectedProductId]);
 
     return (
         <main
@@ -379,10 +467,12 @@ function PurchasesContent() {
                 </div>
 
                 <div style={{ fontSize: '14px', color: '#666', marginTop: '8px', display: 'flex', alignItems: 'center' }}>
-                    <span>({filteredEntries.length}件)</span>
+                    {/* <span>({filteredEntries.length}件)</span>
                     <span style={{ marginLeft: '16px', fontWeight: 'bold', color: '#333' }}>
                         合計: ¥{totalAmount.toLocaleString()}
-                    </span>
+                    </span> */}
+                    {/* Total moved to fixed footer */}
+                    <span>{filteredEntries.length}件</span>
                 </div>
             </section>
 
@@ -430,8 +520,18 @@ function PurchasesContent() {
                                         width: '110px',
                                         justifyContent: 'flex-end'
                                     }}>
-                                        <span>購入日</span>
-                                        <span>{entry.purchaseDate ? formatShortDate(entry.purchaseDate) : ''}</span>
+                                        {/* Status 30: 購〆日 (purchaseEnd) / Status 40: 購入日 (purchaseDate) */}
+                                        {entry.status === 30 && entry.purchaseEnd ? (
+                                            <>
+                                                <span>購〆日</span>
+                                                <span>{formatShortDate(entry.purchaseEnd)}</span>
+                                            </>
+                                        ) : (entry.status === 40 || (entry as any).purchaseDate) ? (
+                                            <>
+                                                <span>購入日</span>
+                                                <span>{entry.purchaseDate ? formatShortDate(entry.purchaseDate) : ''}</span>
+                                            </>
+                                        ) : null}
                                     </span>
                                     <span style={{ marginLeft: '4px', transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', display: 'inline-block', transition: 'transform 0.2s' }}>
                                         ^
@@ -453,74 +553,76 @@ function PurchasesContent() {
                                                 {entry.purchaseMembers.map((member) => (
                                                     <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '4px 8px', borderRadius: '4px' }}>
                                                         <span style={{ fontSize: '14px' }}>{member.name}</span>
-                                                        <select
-                                                            value={member.status !== undefined ? member.status : 0}
-                                                            onChange={async (e) => {
-                                                                const newStatus = Number(e.target.value);
+                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                            {(member.status === 30 || member.status === 40) && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleOpenItemsModal(entry, member);
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '2px 6px',
+                                                                        fontSize: '11px',
+                                                                        backgroundColor: '#28a745',
+                                                                        color: '#fff',
+                                                                        border: 'none',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer',
+                                                                        marginRight: '8px'
+                                                                    }}
+                                                                >
+                                                                    商品
+                                                                </button>
+                                                            )}
+                                                            <select
+                                                                value={member.status !== undefined ? member.status : 0}
+                                                                onChange={async (e) => {
+                                                                    const newStatus = Number(e.target.value);
 
-                                                                if (newStatus === 30 || newStatus === 40) {
-                                                                    await handleOpenItemsModal(entry, member);
-                                                                }
-
-                                                                const updatedMembers = entry.purchaseMembers?.map(m =>
-                                                                    m.id === member.id ? { ...m, status: newStatus } : m
-                                                                );
-
-                                                                setEntries(prev => prev.map(p =>
-                                                                    p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
-                                                                ));
-
-                                                                try {
-                                                                    const res = await fetch(`/api/entries/${entry.id}/members`, {
-                                                                        method: 'PUT',
-                                                                        headers: { 'Content-Type': 'application/json' },
-                                                                        body: JSON.stringify({ members: updatedMembers }),
-                                                                    });
-                                                                    if (!res.ok) {
-                                                                        throw new Error('Failed to update');
+                                                                    if (newStatus === 30 || newStatus === 40) {
+                                                                        await handleOpenItemsModal(entry, member);
                                                                     }
-                                                                    const data = await res.json();
-                                                                    if (data.newStatus !== undefined) {
-                                                                        setEntries(prev => prev.map(p =>
-                                                                            p.id === entry.id ? { ...p, status: data.newStatus } : p
-                                                                        ));
+
+                                                                    const updatedMembers = entry.purchaseMembers?.map(m =>
+                                                                        m.id === member.id ? { ...m, status: newStatus } : m
+                                                                    );
+
+                                                                    setEntries(prev => prev.map(p =>
+                                                                        p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
+                                                                    ));
+
+                                                                    try {
+                                                                        const res = await fetch(`/api/entries/${entry.id}/members`, {
+                                                                            method: 'PUT',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ members: updatedMembers }),
+                                                                        });
+                                                                        if (!res.ok) {
+                                                                            throw new Error('Failed to update');
+                                                                        }
+                                                                        const data = await res.json();
+                                                                        if (data.newStatus !== undefined) {
+                                                                            setEntries(prev => prev.map(p =>
+                                                                                p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                            ));
+                                                                        }
+                                                                    } catch (error) {
+                                                                        alert('ステータス更新に失敗しました');
                                                                     }
-                                                                } catch (error) {
-                                                                    alert('ステータス更新に失敗しました');
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                border: '1px solid #ccc',
-                                                                borderRadius: 4,
-                                                                padding: '2px 4px',
-                                                                fontSize: 12,
-                                                                backgroundColor: '#fff'
-                                                            }}
-                                                        >
-                                                            {statusOptions.filter(opt => opt.code !== 10).map(opt => (
-                                                                <option key={opt.code} value={opt.code}>{opt.name}</option>
-                                                            ))}
-                                                        </select>
-                                                        {(member.status === 30 || member.status === 40) && (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleOpenItemsModal(entry, member);
                                                                 }}
                                                                 style={{
-                                                                    marginLeft: '4px',
-                                                                    padding: '2px 6px',
-                                                                    fontSize: '11px',
-                                                                    backgroundColor: '#28a745',
-                                                                    color: '#fff',
-                                                                    border: 'none',
-                                                                    borderRadius: '4px',
-                                                                    cursor: 'pointer'
+                                                                    border: '1px solid #ccc',
+                                                                    borderRadius: 4,
+                                                                    padding: '2px 4px',
+                                                                    fontSize: 12,
+                                                                    backgroundColor: '#fff'
                                                                 }}
                                                             >
-                                                                商品
-                                                            </button>
-                                                        )}
+                                                                {statusOptions.filter(opt => opt.code !== 10).map(opt => (
+                                                                    <option key={opt.code} value={opt.code}>{opt.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -573,6 +675,58 @@ function PurchasesContent() {
                 })}
             </div>
 
+
+            {/* Fixed Totals Display */}
+            <div
+                style={{
+                    position: 'fixed',
+                    bottom: '60px', // Above the 60px footer
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '100%',
+                    maxWidth: '480px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    borderTop: '1px solid #ccc',
+                    padding: '8px 12px',
+                    zIndex: 90,
+                    boxShadow: '0 -2px 5px rgba(0,0,0,0.1)',
+                    fontSize: '13px',
+                }}
+            >
+                {/* 1. Item Totals (Only if single product selected) */}
+                {selectedProductId !== 'all' && Object.keys(itemTotals).length > 0 && (
+                    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px dashed #eee' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>商品計:</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {Object.entries(itemTotals).map(([name, qty]) => (
+                                <span key={name} style={{ backgroundColor: '#e6f2ff', padding: '2px 6px', borderRadius: '4px' }}>
+                                    {name}: {qty}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. Member Totals */}
+                {Object.keys(memberTotals).length > 0 && (
+                    <div style={{ marginBottom: '6px', paddingBottom: '6px', borderBottom: '1px dashed #eee' }}>
+                        <div style={{ fontWeight: 'bold', marginBottom: '2px' }}>メンバー計:</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {Object.entries(memberTotals).map(([name, amount]) => (
+                                <span key={name}>
+                                    {name}: ¥{amount.toLocaleString()}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 3. Grand Total */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', fontWeight: 'bold', fontSize: '15px' }}>
+                    <span>合計:</span>
+                    <span style={{ marginLeft: '8px', color: '#1e90ff' }}>¥{totalAmount.toLocaleString()}</span>
+                </div>
+            </div>
 
             <footer
                 style={{

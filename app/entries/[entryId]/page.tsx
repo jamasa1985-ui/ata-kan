@@ -303,10 +303,12 @@ export default function EditEntryPage({ params }: PageProps) {
                 maxWidth={480}
                 backgroundColor="#1e90ff"
                 leftContent={
-                    <button type="button" onClick={handleCancel} style={{ background: '#fff', border: 'none', borderRadius: 4, padding: '4px 8px', cursor: 'pointer', color: '#333', fontSize: 12 }}>戻る</button>
+                    <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
                 }
                 rightContent={
-                    <Link href="/" style={{ background: '#fff', borderRadius: 4, padding: '4px 8px', textDecoration: 'none', color: '#333', fontSize: 12 }}>TOPへ戻る</Link>
+                    <div style={{ fontSize: '12px', color: '#fff', backgroundColor: 'rgba(255,255,255,0.2)', padding: '4px 8px', borderRadius: '4px' }}>
+                        ID: <span style={{ fontFamily: 'monospace' }}>{entryId}</span>
+                    </div>
                 }
             />
 
