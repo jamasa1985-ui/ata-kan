@@ -74,6 +74,9 @@ function CreateEntryContent() {
     const productId = searchParams.get('productId');
     const productName = searchParams.get('productName'); // Optional: pass name to avoid fetch
 
+    const from = searchParams.get('from');
+    const mode = searchParams.get('mode');
+
     // State
     const [loading, setLoading] = useState(false); // Only for submitting
     const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
@@ -258,6 +261,22 @@ function CreateEntryContent() {
         fetchProducts();
     }, [productId, productName]);
 
+    const handleRedirect = () => {
+        if (from === 'schedule') {
+            router.push('/schedule');
+        } else if (from === 'lotteries') {
+            router.push(`/lotteries${mode ? `?mode=${mode}` : ''}`);
+        } else if (from === 'purchases') {
+            router.push(`/purchases${mode ? `?mode=${mode}` : ''}`);
+        } else if (from === 'product-purchases' && productId) {
+            router.push(`/products/${productId}/purchases`);
+        } else if (productId) {
+            router.push(`/products/${productId}`);
+        } else {
+            router.push('/lotteries');
+        }
+    };
+
     const handleRegister = async () => {
         if (!formData.productId) {
             alert('商品情報が不足しています');
@@ -284,11 +303,7 @@ function CreateEntryContent() {
 
             if (res.ok) {
                 alert('登録しました');
-                if (productId) {
-                    router.push(`/products/${productId}`);
-                } else {
-                    router.push('/lotteries');
-                }
+                handleRedirect();
             } else {
                 alert('登録に失敗しました');
             }
@@ -343,11 +358,7 @@ function CreateEntryContent() {
     };
 
     const handleCancel = () => {
-        if (productId) {
-            router.push(`/products/${productId}`);
-        } else {
-            router.back();
-        }
+        handleRedirect();
     };
 
     return (

@@ -266,7 +266,7 @@ export default function SchedulePage() {
                     display: 'flex',
                     justifyContent: 'flex-start'
                 }}>
-                    <Link href="/entries/create/schedule">
+                    <Link href="/entries/create/schedule?from=schedule">
                         <button
                             type="button"
                             style={{

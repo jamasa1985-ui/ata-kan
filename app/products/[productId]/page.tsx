@@ -521,7 +521,7 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <Link href={`/entries/${entry.id}?productId=${productId}`}>
+                                        <Link href={`/entries/${entry.id}?productId=${productId}&from=product`}>
                                             <button style={{ backgroundColor: '#1e90ff', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
                                                 編集
                                             </button>
@@ -551,7 +551,7 @@ export default function ProductEntriesPage({ params }: PageProps) {
                     zIndex: 100,
                 }}
             >
-                <Link href={`/entries/create?productId=${productId}`}>
+                <Link href={`/entries/create?productId=${productId}&from=product`}>
                     <button
                         style={{
                             backgroundColor: '#fff',

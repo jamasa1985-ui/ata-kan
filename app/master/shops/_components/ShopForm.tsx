@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Header from '../../../_components/Header';
 
@@ -19,6 +19,7 @@ type Props = {
 
 export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDelete }: Props) {
     const [loading, setLoading] = useState(false);
+    const [allShops, setAllShops] = useState<Shop[]>([]);
     // Explicitly cast or construct initial state
     const [formData, setFormData] = useState<ShopFormData>(initialData || {
         name: '',
@@ -37,6 +38,41 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
         resultDate: 0,
         resultTime: '',
     });
+
+    useEffect(() => {
+        const fetchShops = async () => {
+            try {
+                const res = await fetch('/api/shops');
+                if (res.ok) {
+                    const data = await res.json();
+                    setAllShops(data);
+                }
+            } catch (error) {
+                console.error('店舗情報の取得に失敗しました:', error);
+            }
+        };
+        fetchShops();
+    }, []);
+
+    const similarShops = useMemo(() => {
+        if (!formData.name) return [];
+
+        // 正規化関数：NFKC(半角カナ→全角、全角英数→半角) + 小文字化 + 空白除去
+        const normalize = (str: string) =>
+            str.normalize('NFKC').toLowerCase().replace(/[\s　]+/g, '');
+
+        const normalizedInput = normalize(formData.name);
+        if (!normalizedInput) return [];
+
+        return allShops.filter(s => {
+            // 自分自身は除外（編集時）
+            if (isEdit && s.id === shopId) return false;
+
+            const normalizedBase = normalize(s.name);
+            // 完全一致または部分一致
+            return normalizedBase.includes(normalizedInput) || normalizedInput.includes(normalizedBase);
+        });
+    }, [formData.name, allShops, isEdit, shopId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -88,6 +124,21 @@ export default function ShopForm({ initialData, isEdit, shopId, onSubmit, onDele
                     <div style={{ marginBottom: '16px' }}>
                         <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', fontSize: '14px' }}>店舗名 <span style={{ color: 'red' }}>*</span></label>
                         <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', boxSizing: 'border-box', fontSize: '16px', color: '#000' }} />
+
+                        {similarShops.length > 0 && (
+                            <div style={{ marginTop: '8px', padding: '12px', backgroundColor: '#fff3cd', border: '1px solid #ffeeba', borderRadius: '4px', fontSize: '13px', color: '#856404' }}>
+                                <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>類似・重複する店舗が既に登録されています：</div>
+                                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                                    {similarShops.map(s => (
+                                        <li key={s.id}>
+                                            <span style={{ fontWeight: 'bold' }}>{s.name}</span> {s.shortName ? `(${s.shortName})` : ''}
+                                            <span style={{ marginLeft: '8px', fontSize: '11px', color: '#666' }}>[ID: {s.id}]</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <div style={{ marginTop: '4px', fontSize: '11px' }}>※入力ミスや二重登録にご注意ください。</div>
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>

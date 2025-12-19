@@ -50,6 +50,8 @@ function CreatePurchaseContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const productId = searchParams.get('productId');
+    const from = searchParams.get('from');
+    const mode = searchParams.get('mode');
 
     const [loading, setLoading] = useState(false);
     const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
@@ -161,6 +163,20 @@ function CreatePurchaseContent() {
         fetchProducts();
     }, [productId]);
 
+    const handleRedirect = () => {
+        if (from === 'schedule') {
+            router.push('/schedule');
+        } else if (from === 'purchases') {
+            router.push(`/purchases${mode ? `?mode=${mode}` : ''}`);
+        } else if (from === 'product-purchases' && productId) {
+            router.push(`/products/${productId}/purchases`);
+        } else if (productId) {
+            router.push(`/products/${productId}/purchases`); // Default for purchases is purchases list
+        } else {
+            router.push('/purchases');
+        }
+    };
+
     const handleRegister = async () => {
         if (!formData.productId || !formData.shopShortName) {
             alert('商品と店舗を選択してください');
@@ -216,11 +232,7 @@ function CreatePurchaseContent() {
 
             if (res.ok) {
                 alert('登録しました');
-                if (productId) {
-                    router.push(`/products/${productId}/purchases`);
-                } else {
-                    router.push('/purchases');
-                }
+                handleRedirect();
             } else {
                 alert('登録に失敗しました');
             }
@@ -256,11 +268,7 @@ function CreatePurchaseContent() {
     };
 
     const handleCancel = () => {
-        if (productId) {
-            router.push(`/products/${productId}/purchases`);
-        } else {
-            router.push('/purchases');
-        }
+        handleRedirect();
     };
 
     return (

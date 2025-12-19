@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Member } from '../../../data';
 
@@ -44,12 +44,33 @@ const toDatetimeLocal = (val: string) => {
 
 function CreateEntryFromScheduleContent() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const from = searchParams.get('from');
+    const mode = searchParams.get('mode');
+    const productIdParam = searchParams.get('productId');
 
     const [loading, setLoading] = useState(false);
+    // ... rest of state
     const [statusOptions, setStatusOptions] = useState<StatusOption[]>([]);
     const [applyMethodOptions, setApplyMethodOptions] = useState<StatusOption[]>([]);
     const [shopOptions, setShopOptions] = useState<{ id: string, name: string }[]>([]);
     const [productOptions, setProductOptions] = useState<Product[]>([]);
+
+    const handleRedirect = () => {
+        if (from === 'schedule') {
+            router.push('/schedule');
+        } else if (from === 'lotteries') {
+            router.push(`/lotteries${mode ? `?mode=${mode}` : ''}`);
+        } else if (from === 'purchases') {
+            router.push(`/purchases${mode ? `?mode=${mode}` : ''}`);
+        } else if (from === 'product-purchases' && productIdParam) {
+            router.push(`/products/${productIdParam}/purchases`);
+        } else if (productIdParam) {
+            router.push(`/products/${productIdParam}`);
+        } else {
+            router.push('/schedule'); // Default fallback for this page
+        }
+    };
 
     const getCurrentHourISO = () => {
         const d = new Date();
@@ -59,7 +80,7 @@ function CreateEntryFromScheduleContent() {
     };
 
     const [formData, setFormData] = useState<EntryForm>({
-        productId: '',
+        productId: productIdParam || '',
         productName: '',
         shopShortName: '',
         status: '0',
@@ -87,7 +108,7 @@ function CreateEntryFromScheduleContent() {
                     if (data.OP002) {
                         const sOpts: StatusOption[] = data.OP002.sort((a: any, b: any) => a.order - b.order);
                         setStatusOptions(sOpts);
-                        if (sOpts.length > 0) {
+                        if (sOpts.length > 0 && !formData.status) {
                             setFormData(prev => ({ ...prev, status: sOpts[0].code.toString() }));
                         }
                     }
@@ -136,6 +157,11 @@ function CreateEntryFromScheduleContent() {
                         .filter(p => p.displayFlag === true)
                         .sort((a, b) => b.id.localeCompare(a.id));
                     setProductOptions(filtered);
+
+                    if (productIdParam) {
+                        const p = filtered.find(p => p.id === productIdParam);
+                        if (p) setFormData(prev => ({ ...prev, productName: p.name }));
+                    }
                 }
             } catch (error) {
                 console.error('Error fetching products:', error);
@@ -146,7 +172,7 @@ function CreateEntryFromScheduleContent() {
         fetchShops();
         fetchMembers();
         fetchProducts();
-    }, []);
+    }, [productIdParam]);
 
     const handleRegister = async () => {
         if (!formData.productId) {
@@ -177,7 +203,7 @@ function CreateEntryFromScheduleContent() {
 
             if (res.ok) {
                 alert('登録しました');
-                router.push('/schedule');
+                handleRedirect();
             } else {
                 alert('登録に失敗しました');
             }
@@ -440,11 +466,12 @@ function CreateEntryFromScheduleContent() {
                 >
                     {loading ? '登録中...' : '登録'}
                 </button>
-                <Link href="/schedule">
-                    <button style={{ backgroundColor: '#fff', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}>
-                        キャンセル
-                    </button>
-                </Link>
+                <button
+                    onClick={handleRedirect}
+                    style={{ backgroundColor: '#fff', color: '#333', border: '1px solid #ccc', borderRadius: 4, padding: '8px 16px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                    キャンセル
+                </button>
             </div>
         </main>
     );

@@ -747,7 +747,7 @@ function PurchasesContent() {
                     boxSizing: 'border-box'
                 }}
             >
-                <Link href="/purchases/create">
+                <Link href={`/purchases/create?from=purchases&mode=${mode || ''}`}>
                     <button
                         style={{
                             backgroundColor: '#fff',

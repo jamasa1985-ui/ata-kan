@@ -547,7 +547,7 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <Link href={`/entries/${entry.id}?productId=${productId}`}>
+                                        <Link href={`/entries/${entry.id}?productId=${productId}&from=product-purchases`}>
                                             <button style={{ backgroundColor: '#007bff', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>
                                                 編集
                                             </button>
@@ -634,7 +634,7 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                     boxSizing: 'border-box'
                 }}
             >
-                <Link href={`/purchases/create?productId=${productId}`}>
+                <Link href={`/purchases/create?productId=${productId}&from=product-purchases`}>
                     <button
                         style={{
                             backgroundColor: '#fff',

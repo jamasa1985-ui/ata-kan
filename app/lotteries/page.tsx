@@ -671,7 +671,7 @@ function LotteriesContent() {
                     zIndex: 100,
                 }}
             >
-                <Link href="/entries/create">
+                <Link href={`/entries/create?from=lotteries&mode=${mode || ''}`}>
                     <button
                         style={{
                             backgroundColor: '#fff',

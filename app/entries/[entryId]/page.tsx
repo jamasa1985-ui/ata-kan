@@ -31,6 +31,8 @@ export default function EditEntryPage({ params }: PageProps) {
             router.push(`/lotteries${mode ? `?mode=${mode}` : ''}`);
         } else if (from === 'purchases') {
             router.push(`/purchases${mode ? `?mode=${mode}` : ''}`);
+        } else if (from === 'product-purchases' && productId) {
+            router.push(`/products/${productId}/purchases`);
         } else if (productId) {
             router.push(`/products/${productId}`);
         } else {
