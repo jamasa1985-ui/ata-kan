@@ -77,7 +77,12 @@ export async function PUT(
 
         await batch.commit();
 
-        return NextResponse.json({ success: true, message: 'Members and Entry status updated', newStatus });
+        return NextResponse.json({
+            success: true,
+            message: 'Members and Entry status updated',
+            newStatus,
+            purchaseDate: updateData.purchaseDate || currentPurchaseDate
+        });
 
     } catch (error) {
         console.error('Error updating members:', error);

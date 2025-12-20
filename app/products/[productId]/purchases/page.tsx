@@ -488,7 +488,11 @@ export default function ProductPurchasesPage({ params }: PageProps) {
                                                                         const data = await res.json();
                                                                         if (data.newStatus !== undefined) {
                                                                             setProductEntries(prev => prev.map(p =>
-                                                                                p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                                p.id === entry.id ? {
+                                                                                    ...p,
+                                                                                    status: data.newStatus,
+                                                                                    purchaseDate: data.purchaseDate || p.purchaseDate
+                                                                                } : p
                                                                             ));
                                                                         }
                                                                     } catch (error) {

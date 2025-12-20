@@ -603,7 +603,11 @@ function PurchasesContent() {
                                                                         const data = await res.json();
                                                                         if (data.newStatus !== undefined) {
                                                                             setEntries(prev => prev.map(p =>
-                                                                                p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                                p.id === entry.id ? {
+                                                                                    ...p,
+                                                                                    status: data.newStatus,
+                                                                                    purchaseDate: data.purchaseDate || p.purchaseDate
+                                                                                } : p
                                                                             ));
                                                                         }
                                                                     } catch (error) {

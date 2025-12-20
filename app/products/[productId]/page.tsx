@@ -230,6 +230,31 @@ export default function ProductEntriesPage({ params }: PageProps) {
         return { label, dateVal };
     };
 
+    const handleOpenItemsModal = async (entry: Entry, member: any) => {
+        setSelectedEntry(entry);
+        setSelectedMember(member);
+
+        // Load existing purchase items
+        try {
+            const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
+            if (itemsRes.ok) {
+                const itemsData = await itemsRes.json();
+                const quantities: Record<string, number> = {};
+                itemsData.items.forEach((item: any) => {
+                    quantities[item.code] = item.quantity;
+                });
+                setItemQuantities(quantities);
+            } else {
+                setItemQuantities({});
+            }
+        } catch (error) {
+            console.error('Error loading items:', error);
+            setItemQuantities({});
+        }
+
+        setShowItemsModal(true);
+    };
+
     if (productLoading) {
         return (
             <main style={{ padding: '16px', fontFamily: 'system-ui, sans-serif' }}>
@@ -440,78 +465,79 @@ export default function ProductEntriesPage({ params }: PageProps) {
                                                 {entry.purchaseMembers.map((member) => (
                                                     <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '4px 8px', borderRadius: '4px' }}>
                                                         <span style={{ fontSize: '14px' }}>{member.name}</span>
-                                                        <select
-                                                            value={member.status !== undefined ? member.status : 0}
-                                                            onChange={async (e) => {
-                                                                const newStatus = Number(e.target.value);
+                                                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                            {(Number(member.status) === 30 || Number(member.status) === 40) && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleOpenItemsModal(entry, member);
+                                                                    }}
+                                                                    style={{
+                                                                        marginRight: '8px',
+                                                                        padding: '2px 6px',
+                                                                        fontSize: '11px',
+                                                                        backgroundColor: '#28a745',
+                                                                        color: '#fff',
+                                                                        border: 'none',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                >
+                                                                    商品
+                                                                </button>
+                                                            )}
+                                                            <select
+                                                                value={member.status !== undefined ? member.status : 0}
+                                                                onChange={async (e) => {
+                                                                    const newStatus = Number(e.target.value);
 
-                                                                // Show modal if status is Won (30) or Purchased (40)
-                                                                if (newStatus === 30 || newStatus === 40) {
-                                                                    setSelectedEntry(entry);
-                                                                    setSelectedMember(member);
+                                                                    // Show modal if status is Won (30) or Purchased (40)
+                                                                    if (newStatus === 30 || newStatus === 40) {
+                                                                        await handleOpenItemsModal(entry, member);
+                                                                    }
 
-                                                                    // Load existing purchase items
+                                                                    // Optimistic Update
+                                                                    const updatedMembers = entry.purchaseMembers?.map(m =>
+                                                                        m.id === member.id ? { ...m, status: newStatus } : m
+                                                                    );
+
+                                                                    setProductEntries(prev => prev.map(p =>
+                                                                        p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
+                                                                    ));
+
                                                                     try {
-                                                                        const itemsRes = await fetch(`/api/entries/${entry.id}/members/${member.id}/items`);
-                                                                        if (itemsRes.ok) {
-                                                                            const itemsData = await itemsRes.json();
-                                                                            const quantities: Record<string, number> = {};
-                                                                            itemsData.items.forEach((item: any) => {
-                                                                                quantities[item.code] = item.quantity;
-                                                                            });
-                                                                            setItemQuantities(quantities);
-                                                                        } else {
-                                                                            setItemQuantities({});
+                                                                        const res = await fetch(`/api/entries/${entry.id}/members`, {
+                                                                            method: 'PUT',
+                                                                            headers: { 'Content-Type': 'application/json' },
+                                                                            body: JSON.stringify({ members: updatedMembers }),
+                                                                        });
+                                                                        if (!res.ok) {
+                                                                            throw new Error('Failed to update');
+                                                                        }
+                                                                        const data = await res.json();
+                                                                        if (data.newStatus !== undefined) {
+                                                                            setProductEntries(prev => prev.map(p =>
+                                                                                p.id === entry.id ? { ...p, status: data.newStatus } : p
+                                                                            ));
                                                                         }
                                                                     } catch (error) {
-                                                                        console.error('Error loading items:', error);
-                                                                        setItemQuantities({});
+                                                                        alert('ステータス更新に失敗しました');
+                                                                        // Revert if needed, but for now simple alert
                                                                     }
-
-                                                                    setShowItemsModal(true);
-                                                                }
-
-                                                                // Optimistic Update
-                                                                const updatedMembers = entry.purchaseMembers?.map(m =>
-                                                                    m.id === member.id ? { ...m, status: newStatus } : m
-                                                                );
-
-                                                                setProductEntries(prev => prev.map(p =>
-                                                                    p.id === entry.id ? { ...p, purchaseMembers: updatedMembers || [] } : p
-                                                                ));
-
-                                                                try {
-                                                                    const res = await fetch(`/api/entries/${entry.id}/members`, {
-                                                                        method: 'PUT',
-                                                                        headers: { 'Content-Type': 'application/json' },
-                                                                        body: JSON.stringify({ members: updatedMembers }),
-                                                                    });
-                                                                    if (!res.ok) {
-                                                                        throw new Error('Failed to update');
-                                                                    }
-                                                                    const data = await res.json();
-                                                                    if (data.newStatus !== undefined) {
-                                                                        setProductEntries(prev => prev.map(p =>
-                                                                            p.id === entry.id ? { ...p, status: data.newStatus } : p
-                                                                        ));
-                                                                    }
-                                                                } catch (error) {
-                                                                    alert('ステータス更新に失敗しました');
-                                                                    // Revert if needed, but for now simple alert
-                                                                }
-                                                            }}
-                                                            style={{
-                                                                border: '1px solid #ccc',
-                                                                borderRadius: '4px',
-                                                                padding: '2px 4px',
-                                                                fontSize: '12px',
-                                                                backgroundColor: member.status === 1 ? '#d4edda' : '#fff' // Highlight logic
-                                                            }}
-                                                        >
-                                                            {statusOptions.filter(opt => opt.code !== 10).map(opt => (
-                                                                <option key={opt.code} value={opt.code}>{opt.name}</option>
-                                                            ))}
-                                                        </select>
+                                                                }}
+                                                                style={{
+                                                                    border: '1px solid #ccc',
+                                                                    borderRadius: '4px',
+                                                                    padding: '2px 4px',
+                                                                    fontSize: '12px',
+                                                                    backgroundColor: member.status === 1 ? '#d4edda' : '#fff' // Highlight logic
+                                                                }}
+                                                            >
+                                                                {statusOptions.filter(opt => opt.code !== 10).map(opt => (
+                                                                    <option key={opt.code} value={opt.code}>{opt.name}</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>

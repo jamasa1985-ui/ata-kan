@@ -185,9 +185,33 @@ function LotteriesContent() {
                 }
                 // いずれの日付もない場合は表示
             } else if (mode === 'results') {
-                // 当落管理: entriesのstatusが20,30,99のもの全て
-                const validStatuses = [20, 30, 99];
-                if (!validStatuses.includes(e.status)) return false;
+                const now = new Date();
+                const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+
+                // 20: 応募済 (Applied) -> resultDate (発表日) から14日以内
+                if (e.status === 20) {
+                    if (e.resultDate) {
+                        const diff = now.getTime() - new Date(e.resultDate).getTime();
+                        if (diff > fourteenDays) return false;
+                    }
+                }
+                // 30: 当選 (Won) -> purchaseEnd (購入期限) から14日以内
+                else if (e.status === 30) {
+                    if (e.purchaseEnd) {
+                        const diff = now.getTime() - new Date(e.purchaseEnd).getTime();
+                        if (diff > fourteenDays) return false;
+                    }
+                }
+                // 99: 落選 (Lost) -> applyEnd (応募締切) から14日以内
+                else if (e.status === 99) {
+                    if (e.applyEnd) {
+                        const diff = now.getTime() - new Date(e.applyEnd).getTime();
+                        if (diff > fourteenDays) return false;
+                    }
+                } else {
+                    // その他（0:未応募, 10:応募中, 40:購入済）は当落管理には表示しない
+                    return false;
+                }
             }
             return true;
         });
@@ -557,6 +581,26 @@ function LotteriesContent() {
                                                     <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9f9f9', padding: '4px 8px', borderRadius: '4px' }}>
                                                         <span style={{ fontSize: '14px' }}>{member.name}</span>
                                                         <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                            {(member.status === 30 || member.status === 40) && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleOpenItemsModal(entry, member);
+                                                                    }}
+                                                                    style={{
+                                                                        marginRight: '8px',
+                                                                        padding: '2px 6px',
+                                                                        fontSize: '11px',
+                                                                        backgroundColor: '#28a745',
+                                                                        color: '#fff',
+                                                                        border: 'none',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                >
+                                                                    商品
+                                                                </button>
+                                                            )}
                                                             <select
                                                                 value={member.status !== undefined ? member.status : 0}
                                                                 onChange={async (e) => {
@@ -610,26 +654,6 @@ function LotteriesContent() {
                                                                     <option key={opt.code} value={opt.code}>{opt.name}</option>
                                                                 ))}
                                                             </select>
-                                                            {(member.status === 30 || member.status === 40) && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleOpenItemsModal(entry, member);
-                                                                    }}
-                                                                    style={{
-                                                                        marginLeft: '4px',
-                                                                        padding: '2px 6px',
-                                                                        fontSize: '11px',
-                                                                        backgroundColor: '#28a745',
-                                                                        color: '#fff',
-                                                                        border: 'none',
-                                                                        borderRadius: '4px',
-                                                                        cursor: 'pointer'
-                                                                    }}
-                                                                >
-                                                                    商品
-                                                                </button>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}
